@@ -9,3 +9,4 @@ coverage/
 
 /src/generated/prisma
 .env
+.env
