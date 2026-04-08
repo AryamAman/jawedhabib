@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import cookieParser from 'cookie-parser';
@@ -12,6 +15,7 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-for-bits-pilani';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'your-google-client-id';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'your-google-client-secret';
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(e => e);
 
 async function startServer() {
   const app = express();
@@ -114,13 +118,15 @@ async function startServer() {
   });
 
   app.get('/api/auth/google/url', (req, res) => {
+    const { flow } = req.query; // 'student' or 'admin'
     const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `http://localhost:${PORT}`;
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
     const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
     const url = client.generateAuthUrl({
       access_type: 'offline',
       scope: ['email', 'profile'],
-      prompt: 'consent'
+      prompt: 'consent',
+      state: flow as string || 'student',
     });
     res.json({ url });
   });
@@ -170,6 +176,48 @@ async function startServer() {
         });
       }
 
+      let role = 'student';
+      const flow = req.query.state as string;
+
+      if (flow === 'admin') {
+        // Check if email is in admin whitelist
+        if (ADMIN_EMAILS.includes(email)) {
+          // Ensure admin record exists
+          let admin = await prisma.admin.findUnique({ where: { email } });
+          if (!admin) {
+            admin = await prisma.admin.create({ data: { email, password_hash: '' } }); // password_hash empty for OAuth admins
+          }
+          role = 'admin';
+          const adminToken = jwt.sign({ id: admin.id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+          res.cookie('adminToken', adminToken, { httpOnly: true, secure: true, sameSite: 'none' });
+          res.send(`
+            <html><body>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${adminToken}', role: '${role}' }, '*');
+                  window.close();
+                } else {
+                  window.location.href = '/admin';
+                }
+              </script>
+              <p>Authentication successful. This window should close automatically.</p>
+            </body></html>
+          `);
+          return;
+        } else {
+          return res.send(`
+            <html><body>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'Not authorized as admin' }, '*');
+                  window.close();
+                }
+              </script>
+              <p>Not authorized as admin. You can close this window.</p>
+            </body></html>
+          `);
+        }
+      }
       const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none' });
       
@@ -177,7 +225,7 @@ async function startServer() {
         <html><body>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}' }, '*');
+              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', role: '${role}' }, '*');
               window.close();
             } else {
               window.location.href = '/dashboard';
@@ -207,6 +255,16 @@ async function startServer() {
       const student = await prisma.student.findUnique({ where: { id: req.user.id } });
       if (!student) return res.status(404).json({ error: 'User not found' });
       res.json({ user: { id: student.id, name: student.name, email: student.email } });
+    } catch (error) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  app.get('/api/admin/me', authenticateAdmin, async (req: any, res) => {
+    try {
+      const admin = await prisma.admin.findUnique({ where: { id: req.user.id } });
+      if (!admin) return res.status(404).json({ error: 'Admin not found' });
+      res.json({ admin: { id: admin.id, email: admin.email } });
     } catch (error) {
       res.status(500).json({ error: 'Server error' });
     }
@@ -349,6 +407,48 @@ async function startServer() {
     }
   });
 
+  app.put('/api/student/bookings/:id/reschedule', authenticate, async (req: any, res) => {
+    const { id } = req.params;
+    const { new_slot_id } = req.body;
+    try {
+      const booking = await prisma.booking.findUnique({ where: { id } });
+      if (!booking || booking.student_id !== req.user.id) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      if (booking.status !== 'NEEDS_RESCHEDULE') {
+        return res.status(400).json({ error: 'Booking does not need reschedule' });
+      }
+      
+      if (new_slot_id === booking.slot_id) {
+        return res.status(400).json({ error: 'Cannot reschedule to the exact same slot.' });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        const newSlot = await tx.appointmentSlot.findUnique({ where: { id: new_slot_id } });
+        if (!newSlot || newSlot.status !== 'AVAILABLE') throw new Error('Slot not available');
+
+        await tx.appointmentSlot.update({
+          where: { id: new_slot_id },
+          data: { status: 'PENDING' }
+        });
+
+        await tx.booking.update({
+          where: { id },
+          data: {
+            slot_id: new_slot_id,
+            status: 'RESCHEDULE_PENDING',
+            stylist_id: newSlot.stylist_id // update stylist if they changed it
+          }
+        });
+      });
+
+      res.json({ message: 'Rescheduled successfully' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Server error' });
+    }
+  });
+
+
   app.put('/api/student/bookings/:id/reschedule-response', authenticate, async (req: any, res) => {
     const { id } = req.params;
     const { accept } = req.body;
@@ -447,7 +547,7 @@ async function startServer() {
 
   app.put('/api/admin/bookings/:id/status', authenticateAdmin, async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body; // 'CONFIRMED' or 'REJECTED'
+    const { status } = req.body; // 'CONFIRMED' or 'REJECTED' or 'CANCELLED' or 'NEEDS_RESCHEDULE'
     try {
       const booking = await prisma.booking.findUnique({ where: { id } });
       if (!booking) return res.status(404).json({ error: 'Booking not found' });
@@ -463,7 +563,7 @@ async function startServer() {
             where: { id: booking.slot_id },
             data: { status: 'BOOKED' }
           });
-        } else if (status === 'REJECTED' || status === 'CANCELLED') {
+        } else if (status === 'REJECTED' || status === 'CANCELLED' || status === 'NEEDS_RESCHEDULE') {
           await tx.appointmentSlot.update({
             where: { id: booking.slot_id },
             data: { status: 'AVAILABLE' }
@@ -483,40 +583,7 @@ async function startServer() {
     }
   });
 
-  app.put('/api/admin/bookings/:id/reschedule', authenticateAdmin, async (req, res) => {
-    const { id } = req.params;
-    const { new_slot_id } = req.body;
-    try {
-      const booking = await prisma.booking.findUnique({ where: { id } });
-      if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-      await prisma.$transaction(async (tx) => {
-        const newSlot = await tx.appointmentSlot.findUnique({ where: { id: new_slot_id } });
-        if (!newSlot || newSlot.status !== 'AVAILABLE') {
-          throw new Error('New slot is not available');
-        }
-
-        // Mark new slot as PENDING
-        await tx.appointmentSlot.update({
-          where: { id: new_slot_id },
-          data: { status: 'PENDING' }
-        });
-
-        // Update booking to RESCHEDULE_PROPOSED
-        await tx.booking.update({
-          where: { id },
-          data: {
-            status: 'RESCHEDULE_PROPOSED',
-            proposed_slot_id: new_slot_id
-          }
-        });
-      });
-
-      res.json({ message: 'Reschedule proposed' });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message || 'Server error' });
-    }
-  });
 
   app.post('/api/admin/slots/generate', authenticateAdmin, async (req, res) => {
     const { date, stylist_id } = req.body;
@@ -548,6 +615,22 @@ async function startServer() {
     const { id } = req.params;
     const { status } = req.body; // 'AVAILABLE' or 'UNAVAILABLE'
     try {
+      if (status === 'UNAVAILABLE') {
+        const activeBookings = await prisma.booking.findMany({
+          where: {
+            slot_id: id,
+            status: { in: ['PENDING', 'CONFIRMED'] }
+          }
+        });
+        
+        for (const b of activeBookings) {
+          await prisma.booking.update({
+            where: { id: b.id },
+            data: { status: 'NEEDS_RESCHEDULE' }
+          });
+        }
+      }
+
       const slot = await prisma.appointmentSlot.update({
         where: { id },
         data: { status }

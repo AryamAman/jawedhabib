@@ -85,14 +85,20 @@ export default function Dashboard() {
   if (!user) return null;
 
   const activeBookings = bookings.filter(b => 
-    (b.status === 'CONFIRMED' || b.status === 'PENDING' || b.status === 'RESCHEDULE_PROPOSED') && 
-    new Date(`${b.slot.date}T${b.slot.time}`) > new Date()
+    b.status === 'NEEDS_RESCHEDULE' || b.status === 'RESCHEDULE_PENDING' ||
+    ((b.status === 'CONFIRMED' || b.status === 'PENDING' || b.status === 'RESCHEDULE_PROPOSED') && 
+     new Date(`${b.slot.date}T${b.slot.time}`) > new Date())
   );
   
   const pastBookings = bookings.filter(b => 
-    b.status === 'CANCELLED' || b.status === 'REJECTED' || 
-    (b.status !== 'RESCHEDULE_PROPOSED' && b.status !== 'PENDING' && new Date(`${b.slot.date}T${b.slot.time}`) <= new Date())
+    b.status === 'REJECTED' || 
+    (b.status !== 'NEEDS_RESCHEDULE' && b.status !== 'RESCHEDULE_PENDING' && b.status !== 'RESCHEDULE_PROPOSED' && b.status !== 'PENDING' && new Date(`${b.slot.date}T${b.slot.time}`) <= new Date())
   );
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
@@ -101,8 +107,25 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-16"
       >
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-4">Welcome, {user.name.split(' ')[0]}</h1>
-        <p className="text-sm uppercase tracking-widest text-stone-500">{user.email}</p>
+        {/* Profile Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12 p-8 bg-white border border-stone-200 shadow-sm">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-stone-900 text-white flex items-center justify-center text-2xl font-serif flex-shrink-0">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h1 className="text-3xl font-serif text-stone-900">{user.name}</h1>
+              <p className="text-sm uppercase tracking-widest text-stone-500 mt-1">{user.email}</p>
+              <span className="inline-block mt-2 text-xs uppercase tracking-widest px-3 py-1 bg-stone-100 text-stone-600">Student</span>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="self-start md:self-center px-6 py-3 text-sm uppercase tracking-widest border border-stone-300 text-stone-600 hover:bg-stone-50 hover:border-stone-900 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </motion.div>
 
       <div className="space-y-16">
@@ -125,10 +148,11 @@ export default function Dashboard() {
                     <span className={clsx(
                       "text-xs uppercase tracking-widest px-3 py-1",
                       booking.status === 'CONFIRMED' ? "bg-stone-900 text-white" : 
-                      booking.status === 'PENDING' ? "bg-stone-200 text-stone-800" :
+                      (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') ? "bg-stone-200 text-stone-800" :
+                      booking.status === 'NEEDS_RESCHEDULE' ? "bg-purple-100 text-purple-900 border border-purple-300" :
                       "bg-yellow-200 text-yellow-900"
                     )}>
-                      {booking.status === 'RESCHEDULE_PROPOSED' ? 'Action Required' : booking.status}
+                      {booking.status === 'RESCHEDULE_PROPOSED' ? 'Action Required' : booking.status === 'NEEDS_RESCHEDULE' ? 'Requested to Reschedule' : booking.status}
                     </span>
                   </div>
                   
@@ -161,6 +185,26 @@ export default function Dashboard() {
                         </button>
                       </div>
                     </div>
+                  ) : booking.status === 'NEEDS_RESCHEDULE' ? (
+                    <div className="mb-8 bg-purple-50 p-4 border border-purple-200 rounded-sm">
+                      <p className="text-sm text-purple-900 mb-4 font-medium">
+                        Your appointment has been requested to reschedule. Please select a new time or cancel your booking.
+                      </p>
+                      <div className="space-y-2">
+                        <button 
+                          onClick={() => navigate('/book', { state: { rescheduleBookingId: booking.id, currentStylist: booking.stylist.id, currentServices: booking.services.map(s => s.id), oldSlotId: booking.slot.id } })}
+                          className="w-full bg-purple-600 text-white py-3 text-xs uppercase tracking-widest hover:bg-purple-700 transition-colors"
+                        >
+                          Accept Rescheduling
+                        </button>
+                        <button 
+                          onClick={() => handleCancel(booking.id)}
+                          className="w-full border border-purple-300 text-purple-900 py-3 text-xs uppercase tracking-widest hover:bg-purple-100 transition-colors"
+                        >
+                          Cancel Booking
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="space-y-4 mb-8">
                       <div className="flex justify-between text-sm">
@@ -178,7 +222,7 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {booking.status !== 'RESCHEDULE_PROPOSED' && (
+                  {booking.status !== 'RESCHEDULE_PROPOSED' && booking.status !== 'NEEDS_RESCHEDULE' && (
                     <button 
                       onClick={() => handleCancel(booking.id)}
                       className="w-full border border-stone-300 text-stone-600 py-3 text-xs uppercase tracking-widest hover:bg-stone-50 transition-colors"

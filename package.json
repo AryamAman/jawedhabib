@@ -19,7 +19,7 @@
     "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.1",
     "express": "^4.21.2",
     "framer-motion": "^12.36.0",
     "google-auth-library": "^10.6.1",

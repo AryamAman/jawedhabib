@@ -38,7 +38,7 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     try {
-      const response = await fetch('/api/auth/google/url');
+      const response = await fetch('/api/auth/google/url?flow=student');
       if (!response.ok) {
         throw new Error('Failed to get auth URL');
       }
@@ -65,9 +65,16 @@ export default function Login() {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        localStorage.setItem('token', event.data.token);
-        toast.success('Login successful');
-        window.location.href = '/dashboard';
+        if (event.data.role === 'admin') {
+           // shouldn't happen via student flow, but if it does, redirect to admin
+           localStorage.setItem('adminToken', event.data.token);
+           toast.success('Admin login successful');
+           window.location.href = '/admin';
+        } else {
+           localStorage.setItem('token', event.data.token);
+           toast.success('Login successful');
+           window.location.href = '/dashboard';
+        }
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
         toast.error(event.data.error || 'Authentication failed');
       }

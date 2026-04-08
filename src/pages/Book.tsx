@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { format, addDays, startOfToday } from 'date-fns';
@@ -20,6 +20,10 @@ export default function Book() {
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   
   const navigate = useNavigate();
+  const location = useLocation();
+  const rescheduleState = location.state as { rescheduleBookingId?: string, currentStylist?: string, currentServices?: string[], oldSlotId?: string } | null;
+  const isRescheduling = !!rescheduleState?.rescheduleBookingId;
+  
   const isLoggedIn = !!localStorage.getItem('token');
 
   useEffect(() => {
@@ -28,8 +32,18 @@ export default function Book() {
       navigate('/login');
       return;
     }
-    fetch('/api/services').then(res => res.json()).then(setServices);
-    fetch('/api/stylists').then(res => res.json()).then(setStylists);
+    fetch('/api/services').then(res => res.json()).then(services => {
+      setServices(services);
+      if (rescheduleState?.currentServices) {
+        setSelectedServices(rescheduleState.currentServices);
+      }
+    });
+    fetch('/api/stylists').then(res => res.json()).then(stylists => {
+      setStylists(stylists);
+      if (rescheduleState?.currentStylist) {
+        setSelectedStylist(rescheduleState.currentStylist);
+      }
+    });
   }, [isLoggedIn, navigate]);
 
   useEffect(() => {
@@ -49,13 +63,19 @@ export default function Book() {
     }
 
     try {
-      const res = await fetch('/api/book', {
-        method: 'POST',
+      const url = isRescheduling 
+        ? `/api/student/bookings/${rescheduleState.rescheduleBookingId}/reschedule`
+        : '/api/book';
+        
+      const res = await fetch(url, {
+        method: isRescheduling ? 'PUT' : 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({
+        body: JSON.stringify(isRescheduling ? {
+          new_slot_id: selectedSlot
+        } : {
           service_ids: selectedServices,
           stylist_id: selectedStylist,
           slot_id: selectedSlot
@@ -63,7 +83,7 @@ export default function Book() {
       });
 
       if (res.ok) {
-        toast.success('Appointment booked successfully!');
+        toast.success(isRescheduling ? 'Appointment rescheduled successfully!' : 'Appointment booked successfully!');
         navigate('/dashboard');
       } else {
         const data = await res.json();
@@ -83,7 +103,7 @@ export default function Book() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-16"
       >
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-6">Book Appointment</h1>
+        <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-6">{isRescheduling ? "Reschedule Appointment" : "Book Appointment"}</h1>
         <div className="w-12 h-[1px] bg-stone-900 mx-auto"></div>
       </motion.div>
 
@@ -191,9 +211,10 @@ export default function Book() {
               {/* Time Slots */}
               <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
                 {slots.length > 0 ? slots.map(slot => {
-                  const isAvailable = slot.status === 'AVAILABLE';
-                  const isUnavailable = slot.status === 'UNAVAILABLE';
-                  const isBooked = slot.status === 'BOOKED' || slot.status === 'PENDING';
+                  const isOldSlot = rescheduleState?.oldSlotId === slot.id;
+                  const isAvailable = slot.status === 'AVAILABLE' && !isOldSlot;
+                  const isUnavailable = slot.status === 'UNAVAILABLE' || isOldSlot;
+                  const isBooked = slot.status === 'BOOKED' || slot.status === 'PENDING' || slot.status === 'RESCHEDULE_PENDING';
 
                   return (
                   <button
@@ -266,7 +287,7 @@ export default function Book() {
               disabled={selectedServices.length === 0 || !selectedStylist || !selectedSlot}
               className="w-full bg-stone-900 text-white py-4 text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors disabled:bg-stone-300 disabled:cursor-not-allowed"
             >
-              Request Booking
+              {isRescheduling ? "Confirm Reschedule" : "Request Booking"}
             </button>
           </div>
         </div>

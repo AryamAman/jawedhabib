@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, addDays, startOfToday } from 'date-fns';
-import { clsx } from 'clsx';
+import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
@@ -19,6 +19,8 @@ interface Stylist { id: string; name: string; role: string; }
 interface Slot { id: string; date: string; time: string; status: string; }
 
 export default function AdminDashboard() {
+  const [admin, setAdmin] = useState<{ email: string } | null>(null);
+  const token = localStorage.getItem('adminToken');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [activeTab, setActiveTab] = useState<'bookings' | 'slots'>('bookings');
   
@@ -30,13 +32,10 @@ export default function AdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Reschedule Modal State
-  const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
-  const [rescheduleDate, setRescheduleDate] = useState<Date>(startOfToday());
-  const [rescheduleSlots, setRescheduleSlots] = useState<Slot[]>([]);
-  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<string>('');
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   const navigate = useNavigate();
-  const token = localStorage.getItem('adminToken');
+  
 
   const fetchBookings = async () => {
     if (!token) return;
@@ -66,6 +65,15 @@ export default function AdminDashboard() {
       navigate('/admin/login');
       return;
     }
+    // fetch admin profile
+    fetch('/api/admin/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setAdmin(data.admin))
+      .catch(() => {
+        navigate('/admin/login');
+      });
     fetchBookings();
     fetch('/api/stylists')
       .then(res => res.json())
@@ -74,6 +82,7 @@ export default function AdminDashboard() {
         if (data.length > 0 && !selectedStylist) setSelectedStylist(data[0].id);
       });
   }, [navigate, token]);
+
 
   useEffect(() => {
     if (activeTab === 'bookings') fetchBookings();
@@ -92,14 +101,7 @@ export default function AdminDashboard() {
     fetchSlots();
   }, [selectedStylist, selectedDate]);
 
-  useEffect(() => {
-    if (rescheduleBooking && rescheduleDate) {
-      const dateStr = format(rescheduleDate, 'yyyy-MM-dd');
-      fetch(`/api/slots?stylist_id=${rescheduleBooking.stylist.id}&date=${dateStr}`)
-        .then(res => res.json())
-        .then(setRescheduleSlots);
-    }
-  }, [rescheduleBooking, rescheduleDate]);
+
 
   const handleGenerateSlots = async () => {
     try {
@@ -127,11 +129,13 @@ export default function AdminDashboard() {
   };
 
   const handleToggleSlot = async (slotId: string, currentStatus: string) => {
-    if (currentStatus === 'BOOKED' || currentStatus === 'PENDING') {
-      toast.error('Cannot change status of a booked or pending slot');
-      return;
-    }
     const newStatus = currentStatus === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE';
+    
+    if (currentStatus === 'BOOKED' || currentStatus === 'PENDING') {
+      const confirm = window.confirm('This slot is currently booked. Marking it unavailable will ask the customer to reschedule. Continue?');
+      if (!confirm) return;
+    }
+    
     try {
       const res = await fetch(`/api/admin/slots/${slotId}`, {
         method: 'PUT',
@@ -144,6 +148,7 @@ export default function AdminDashboard() {
       if (res.ok) {
         toast.success(`Slot marked as ${newStatus.toLowerCase()}`);
         fetchSlots();
+        fetchBookings(); // Also fetch bookings since we might have updated booking statuses to NEEDS_RESCHEDULE
       } else {
         toast.error('Failed to update slot');
       }
@@ -173,34 +178,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleReschedule = async () => {
-    if (!rescheduleBooking || !selectedRescheduleSlot) return;
-    try {
-      const res = await fetch(`/api/admin/bookings/${rescheduleBooking.id}/reschedule`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ new_slot_id: selectedRescheduleSlot })
-      });
-      if (res.ok) {
-        toast.success('Reschedule proposed to customer');
-        setRescheduleBooking(null);
-        setSelectedRescheduleSlot('');
-        fetchBookings();
-      } else {
-        const data = await res.json();
-        toast.error(data.error || 'Failed to propose reschedule');
-      }
-    } catch (err) {
-      toast.error('An error occurred');
-    }
-  };
-
   const dates = Array.from({ length: 14 }).map((_, i) => addDays(startOfToday(), i));
 
-  const pendingBookings = bookings.filter(b => b.status === 'PENDING');
+  const pendingBookings = bookings
+    .filter(b => b.status === 'PENDING' || b.status === 'RESCHEDULE_PENDING')
+    .sort((a, b) => {
+      // Prioritize RESCHEDULE_PENDING over PENDING
+      if (a.status === 'RESCHEDULE_PENDING' && b.status === 'PENDING') return -1;
+      if (b.status === 'RESCHEDULE_PENDING' && a.status === 'PENDING') return 1;
+      return 0;
+    });
   const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'RESCHEDULE_PROPOSED');
 
   const onDragStart = (e: React.DragEvent, id: string) => {
@@ -216,69 +203,71 @@ export default function AdminDashboard() {
 
   const BookingCard = ({ booking }: { booking: Booking }) => (
     <div 
-      draggable={booking.status === 'PENDING'}
+      draggable={booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING'}
       onDragStart={(e) => onDragStart(e, booking.id)}
+      onClick={() => setSelectedBooking(booking)}
       className={clsx(
-        "bg-white border p-4 shadow-sm mb-4",
-        booking.status === 'PENDING' ? "cursor-grab active:cursor-grabbing border-stone-200 hover:border-stone-400" : "border-stone-200"
+        "bg-white border p-4 shadow-sm mb-4 cursor-pointer transition-colors",
+        (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') ? "active:cursor-grabbing border-stone-200 hover:border-stone-400" : "border-stone-200 hover:border-stone-400",
+        booking.status === 'RESCHEDULE_PENDING' && "border-purple-300 bg-purple-50 hover:border-purple-400",
+        booking.status === 'PENDING' && "border-green-300 bg-green-50 hover:border-green-400"
       )}
     >
       <div className="flex justify-between items-start mb-2">
-        <div className="font-medium text-stone-900">{booking.student.name}</div>
-        <div className="text-xs uppercase tracking-widest text-stone-500">{booking.status}</div>
+        <div className={clsx(
+          "font-medium", 
+          booking.status === 'RESCHEDULE_PENDING' ? "text-purple-900" : 
+          booking.status === 'PENDING' ? "text-green-900" : "text-stone-900"
+        )}>{booking.student.name}</div>
+        <div className={clsx(
+          "text-xs uppercase tracking-widest",
+          booking.status === 'RESCHEDULE_PENDING' ? "text-purple-600" :
+          booking.status === 'PENDING' ? "text-green-600" : "text-stone-500"
+        )}>{booking.status === 'RESCHEDULE_PENDING' ? 'Rescheduled' : booking.status}</div>
       </div>
       <div className="text-sm text-stone-600 mb-2">
         {format(parseISO(booking.slot.date), 'MMM d, yyyy')} at {booking.slot.time}
       </div>
-      <div className="text-xs text-stone-500 mb-4">
+      <div className="text-xs text-stone-500">
         Stylist: {booking.stylist.name} <br/>
         Services: {booking.services.map(s => s.name).join(', ')}
       </div>
-      
-      {booking.status === 'PENDING' && (
-        <div className="flex gap-2 mt-4">
-          <button 
-            onClick={() => handleStatusChange(booking.id, 'CONFIRMED')}
-            className="flex-1 bg-stone-900 text-white py-2 text-xs uppercase tracking-widest hover:bg-stone-800"
-          >
-            Accept
-          </button>
-          <button 
-            onClick={() => handleStatusChange(booking.id, 'REJECTED')}
-            className="flex-1 bg-white border border-stone-200 text-stone-900 py-2 text-xs uppercase tracking-widest hover:bg-stone-50"
-          >
-            Reject
-          </button>
-        </div>
-      )}
-
-      {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
-        <div className="flex gap-2 mt-2">
-          <button 
-            onClick={() => setRescheduleBooking(booking)}
-            className="flex-1 bg-stone-100 text-stone-600 py-2 text-xs uppercase tracking-widest hover:bg-stone-200"
-          >
-            Reschedule
-          </button>
-          {booking.status === 'CONFIRMED' && (
-            <button 
-              onClick={() => {
-                if (confirm('Are you sure you want to cancel this booking?')) {
-                  handleStatusChange(booking.id, 'CANCELLED');
-                }
-              }}
-              className="flex-1 bg-red-50 text-red-600 py-2 text-xs uppercase tracking-widest hover:bg-red-100"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/admin/login';
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-16"
+      >
+        {/* Admin Profile Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12 p-8 bg-white border border-stone-200 shadow-sm">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-stone-900 text-white flex items-center justify-center text-2xl font-serif flex-shrink-0">
+              {admin?.email?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h1 className="text-3xl font-serif text-stone-900">Admin</h1>
+              <p className="text-sm uppercase tracking-widest text-stone-500 mt-1">{admin?.email}</p>
+              <span className="inline-block mt-2 text-xs uppercase tracking-widest px-3 py-1 bg-stone-100 text-stone-600">Administrator</span>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="self-start md:self-center px-6 py-3 text-sm uppercase tracking-widest border border-stone-300 text-stone-600 hover:bg-stone-50 hover:border-stone-900 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      </motion.div>
+
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -331,7 +320,7 @@ export default function AdminDashboard() {
               <span className="bg-stone-200 text-stone-800 text-xs px-2 py-1 rounded-full">{pendingBookings.length}</span>
             </h2>
             {pendingBookings.map(booking => (
-              <BookingCard key={booking.id} booking={booking} />
+              <div key={booking.id}><BookingCard booking={booking} /></div>
             ))}
             {pendingBookings.length === 0 && (
               <div className="text-center text-stone-400 text-sm uppercase tracking-widest py-12 border-2 border-dashed border-stone-200">
@@ -354,7 +343,7 @@ export default function AdminDashboard() {
               Drag pending requests here to confirm
             </div>
             {confirmedBookings.map(booking => (
-              <BookingCard key={booking.id} booking={booking} />
+              <div key={booking.id}><BookingCard booking={booking} /></div>
             ))}
             {confirmedBookings.length === 0 && (
               <div className="text-center text-stone-400 text-sm uppercase tracking-widest py-12 border-2 border-dashed border-stone-200">
@@ -455,86 +444,72 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Reschedule Modal */}
+      {/* Action Modal */}
       <AnimatePresence>
-        {rescheduleBooking && (
+        {selectedBooking && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-2xl shadow-xl overflow-hidden"
+              className="bg-white w-full max-w-md shadow-xl overflow-hidden"
             >
               <div className="p-6 border-b border-stone-200 flex justify-between items-center">
-                <h2 className="text-2xl font-serif text-stone-900">Reschedule Appointment</h2>
-                <button onClick={() => setRescheduleBooking(null)} className="text-stone-400 hover:text-stone-900">
-                  <X className="w-6 h-6" />
+                <h2 className="text-xl font-serif text-stone-900">Manage Booking</h2>
+                <button onClick={() => setSelectedBooking(null)} className="text-stone-400 hover:text-stone-900">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               
               <div className="p-6">
-                <p className="text-sm text-stone-600 mb-6">
-                  Proposing a new time for <strong>{rescheduleBooking.student.name}</strong> with <strong>{rescheduleBooking.stylist.name}</strong>.
+                <p className="text-sm text-stone-600 mb-6 font-medium">
+                  {selectedBooking.student.name} • {selectedBooking.status}
                 </p>
 
-                <h3 className="text-xs uppercase tracking-widest text-stone-500 mb-4">Select New Date</h3>
-                <div className="flex overflow-x-auto pb-4 gap-4 snap-x mb-6">
-                  {dates.map((date, i) => (
-                    <div 
-                      key={i}
-                      onClick={() => { setRescheduleDate(date); setSelectedRescheduleSlot(''); }}
-                      className={clsx(
-                        "flex-shrink-0 w-20 p-3 border text-center cursor-pointer transition-all duration-300 snap-start",
-                        format(rescheduleDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                          ? "border-stone-900 bg-stone-900 text-white" 
-                          : "border-stone-200 bg-white hover:border-stone-400 text-stone-900"
-                      )}
-                    >
-                      <p className="text-[10px] uppercase tracking-widest mb-1">{format(date, 'EEE')}</p>
-                      <p className="font-serif text-xl">{format(date, 'd')}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <h3 className="text-xs uppercase tracking-widest text-stone-500 mb-4">Select New Time</h3>
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-8">
-                  {rescheduleSlots.length > 0 ? rescheduleSlots.map(slot => (
-                    <button
-                      key={slot.id}
-                      disabled={slot.status !== 'AVAILABLE'}
-                      onClick={() => setSelectedRescheduleSlot(slot.id)}
-                      className={clsx(
-                        "py-2 border text-sm uppercase tracking-widest transition-all duration-300",
-                        slot.status !== 'AVAILABLE'
-                          ? "bg-stone-100 text-stone-400 border-stone-100 cursor-not-allowed line-through" 
-                          : selectedRescheduleSlot === slot.id
-                            ? "border-stone-900 bg-stone-900 text-white"
-                            : "border-stone-200 bg-white hover:border-stone-400 text-stone-900 cursor-pointer"
-                      )}
-                    >
-                      {slot.time}
-                    </button>
-                  )) : (
-                    <div className="col-span-full text-center py-4 text-stone-500 text-xs uppercase tracking-widest">
-                      No slots available
+                <div className="space-y-3">
+                  {(selectedBooking.status === 'PENDING' || selectedBooking.status === 'RESCHEDULE_PENDING') && (
+                    <div className="flex gap-3 mb-6">
+                      <button 
+                        onClick={() => { handleStatusChange(selectedBooking.id, 'CONFIRMED'); setSelectedBooking(null); }}
+                        className="flex-1 bg-green-600 text-white py-3 text-sm uppercase tracking-widest hover:bg-green-700"
+                      >
+                        Accept
+                      </button>
+                      <button 
+                        onClick={() => { handleStatusChange(selectedBooking.id, 'REJECTED'); setSelectedBooking(null); }}
+                        className="flex-1 bg-red-50 text-red-600 py-3 text-sm uppercase tracking-widest hover:bg-red-100"
+                      >
+                        Reject
+                      </button>
                     </div>
                   )}
-                </div>
 
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => setRescheduleBooking(null)}
-                    className="flex-1 px-6 py-3 text-sm uppercase tracking-widest bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleReschedule}
-                    disabled={!selectedRescheduleSlot}
-                    className="flex-1 px-6 py-3 text-sm uppercase tracking-widest bg-stone-900 text-white hover:bg-stone-800 disabled:bg-stone-300 disabled:cursor-not-allowed"
-                  >
-                    Propose New Time
-                  </button>
+                  {(selectedBooking.status === 'CONFIRMED' || selectedBooking.status === 'PENDING' || selectedBooking.status === 'RESCHEDULE_PENDING') && (
+                    <>
+                      <button 
+                        onClick={() => {
+                          if (confirm('Are you sure you want to cancel this booking?')) {
+                            handleStatusChange(selectedBooking.id, 'CANCELLED');
+                            setSelectedBooking(null);
+                          }
+                        }}
+                        className="w-full bg-white border border-red-200 text-red-600 py-3 text-sm uppercase tracking-widest hover:bg-red-50"
+                      >
+                        Cancel Booking
+                      </button>
+                      
+                      <button 
+                        onClick={() => {
+                          handleStatusChange(selectedBooking.id, 'NEEDS_RESCHEDULE');
+                          setSelectedBooking(null);
+                        }}
+                        className="w-full bg-stone-900 text-white py-3 text-sm uppercase tracking-widest hover:bg-stone-800"
+                      >
+                        Ask to Reschedule
+                      </button>
+                      <p className="text-xs text-stone-500 mt-2 text-center">Asking to reschedule will prompt the customer to pick a new slot and will free up the current slot.</p>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
