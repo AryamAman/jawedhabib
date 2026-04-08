@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Student {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password_hash String?
+  google_id     String?   @unique
+  created_at    DateTime  @default(now())
+  bookings      Booking[]
+}
+
+model Admin {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  created_at    DateTime  @default(now())
+}
+
+model Stylist {
+  id               String            @id @default(uuid())
+  name             String
+  role             String
+  photo            String?
+  bio              String?
+  appointmentSlots AppointmentSlot[]
+  bookings         Booking[]
+}
+
+model Service {
+  id               String    @id @default(uuid())
+  name             String
+  duration_minutes Int
+  price            Float
+  bookings         Booking[]
+}
+
+model AppointmentSlot {
+  id           String   @id @default(uuid())
+  date         String   // YYYY-MM-DD
+  time         String   // HH:MM
+  stylist_id   String
+  status       String   @default("AVAILABLE") // AVAILABLE, PENDING, BOOKED, UNAVAILABLE
+  stylist      Stylist  @relation(fields: [stylist_id], references: [id])
+  booking      Booking? @relation("CurrentSlot")
+  proposed_for Booking? @relation("ProposedSlot")
+}
+
+model Booking {
+  id               String          @id @default(uuid())
+  student_id       String
+  stylist_id       String
+  slot_id          String          @unique
+  proposed_slot_id String?         @unique
+  status           String          @default("PENDING") // PENDING, CONFIRMED, REJECTED, CANCELLED, RESCHEDULE_PROPOSED
+  created_at       DateTime        @default(now())
+  
+  student          Student         @relation(fields: [student_id], references: [id])
+  services         Service[]
+  stylist          Stylist         @relation(fields: [stylist_id], references: [id])
+  slot             AppointmentSlot @relation("CurrentSlot", fields: [slot_id], references: [id])
+  proposed_slot    AppointmentSlot? @relation("ProposedSlot", fields: [proposed_slot_id], references: [id])
+}
