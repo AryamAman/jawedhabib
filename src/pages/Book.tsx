@@ -288,7 +288,7 @@ export default function Book() {
     : [];
 
   return (
-    <div className="w-full max-w-6xl mx-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 py-24">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -302,7 +302,7 @@ export default function Book() {
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.5fr)_340px] xl:grid-cols-[minmax(0,1.5fr)_360px]">
+      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1.5fr)_340px] xl:grid-cols-[minmax(0,1.5fr)_360px]">
         <div className="min-w-0 space-y-10">
           <section>
             <div className="flex justify-between items-end mb-6">
@@ -661,8 +661,8 @@ export default function Book() {
           )}
         </div>
 
-        <aside className="h-fit min-w-0 lg:sticky lg:top-28">
-          <div className="border border-stone-200 bg-white p-8 shadow-sm">
+        <aside className="min-w-0 lg:h-fit lg:self-start lg:sticky lg:top-24 lg:z-30">
+          <div className="border border-stone-200 bg-white p-8 shadow-sm lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
             <h2 className="text-2xl font-serif text-stone-900 mb-8">Booking Summary</h2>
 
             <div className="space-y-6 mb-10">

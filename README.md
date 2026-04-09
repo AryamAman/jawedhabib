@@ -16,6 +16,7 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
    npm install
    ```
 2. Copy `.env.example` to `.env` and fill in your values.
+   For local PostgreSQL, you can point both `DATABASE_URL` and `DIRECT_URL` to the same direct connection string.
 3. Apply migrations:
    ```bash
    npx prisma migrate deploy
@@ -36,6 +37,7 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
 3. Set these environment variables in Vercel:
    - `APP_URL`
    - `DATABASE_URL`
+   - `DIRECT_URL`
    - `JWT_SECRET`
    - `ADMIN_EMAILS`
    - `GOOGLE_CLIENT_ID`
@@ -57,7 +59,8 @@ APP_URL="https://jawedhabib.vercel.app"
 
 ```env
 APP_URL="https://jawedhabib.vercel.app"
-DATABASE_URL="postgresql://username:password@host:5432/jawedhabib?schema=public"
+DATABASE_URL="postgresql://username:password@pooler-host:6543/jawedhabib?schema=public"
+DIRECT_URL="postgresql://username:password@direct-host:5432/jawedhabib?schema=public"
 JWT_SECRET="replace-with-a-long-random-secret"
 ADMIN_BOOTSTRAP_EMAIL="admin@pilani.bits-pilani.ac.in"
 ADMIN_BOOTSTRAP_PASSWORD="replace-with-a-strong-password"
@@ -71,5 +74,6 @@ GEMINI_API_KEY=""
 ## Notes
 
 - The app now expects a hosted PostgreSQL database for production.
+- Prisma uses `DATABASE_URL` for runtime queries and `DIRECT_URL` for direct migration access.
 - Local SQLite files are intentionally ignored and should not be committed.
 - Student and admin views use the same booking color language for availability, bookings, unavailable time, and reschedules.

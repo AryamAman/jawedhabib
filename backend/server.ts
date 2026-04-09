@@ -24,7 +24,7 @@ import {
 const prisma = new PrismaClient();
 
 const isProduction = process.env.NODE_ENV === 'production';
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 const requireProductionEnv = (name: string) => {
   const value = process.env[name];
@@ -485,6 +485,25 @@ app.set('trust proxy', 1);
     return slot;
   };
 
+  const canKeepBookingWindow = async (options: {
+    runner?: PrismaRunner;
+    slotId: string;
+    durationMinutes: number;
+    bookingId: string;
+  }) => {
+    try {
+      await validateWindowAvailability({
+        runner: options.runner,
+        slotId: options.slotId,
+        durationMinutes: options.durationMinutes,
+        excludeBookingId: options.bookingId,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const backfillBookingDurations = async () => {
     const bookingsNeedingDuration = await prisma.booking.findMany({
       where: { duration_minutes: 0 },
@@ -642,6 +661,14 @@ app.set('trust proxy', 1);
       ));
 
       if (overlapsCurrent) {
+        const shouldPreserveProposal = booking.status === 'RESCHEDULE_PROPOSED'
+          && Boolean(booking.proposed_slot_id)
+          && !overlapsProposal;
+
+        if (shouldPreserveProposal) {
+          continue;
+        }
+
         await runner.booking.update({
           where: { id: booking.id },
           data: {
@@ -650,10 +677,18 @@ app.set('trust proxy', 1);
           },
         });
       } else if (overlapsProposal && booking.status === 'RESCHEDULE_PROPOSED') {
+        const durationMinutes = getBookingDurationMinutes(booking);
+        const originalSlotStillValid = await canKeepBookingWindow({
+          runner,
+          slotId: booking.slot_id,
+          durationMinutes,
+          bookingId: booking.id,
+        });
+
         await runner.booking.update({
           where: { id: booking.id },
           data: {
-            status: 'CONFIRMED',
+            status: originalSlotStillValid ? 'CONFIRMED' : 'NEEDS_RESCHEDULE',
             proposed_slot_id: null,
           },
         });
@@ -840,7 +875,7 @@ app.set('trust proxy', 1);
     try {
       const booking = await prisma.booking.findUnique({
         where: { id },
-        include: { proposed_slot: true },
+        include: { proposed_slot: true, services: true, slot: true },
       });
 
       if (!booking || booking.student_id !== req.user.id) {
@@ -851,24 +886,55 @@ app.set('trust proxy', 1);
         return res.status(400).json({ error: 'No reschedule proposed' });
       }
 
+      const durationMinutes = getBookingDurationMinutes(booking);
+
+      if (accept) {
+        await validateWindowAvailability({
+          slotId: booking.proposed_slot_id,
+          durationMinutes,
+          excludeBookingId: booking.id,
+        });
+
+        await prisma.booking.update({
+          where: { id },
+          data: {
+            slot_id: booking.proposed_slot_id,
+            stylist_id: booking.proposed_slot.stylist_id,
+            proposed_slot_id: null,
+            status: 'CONFIRMED',
+          },
+        });
+
+        return res.json({ message: 'New time accepted successfully', status: 'CONFIRMED' });
+      }
+
+      const originalSlotStillValid = await canKeepBookingWindow({
+        slotId: booking.slot_id,
+        durationMinutes,
+        bookingId: booking.id,
+      });
+
       await prisma.booking.update({
         where: { id },
-        data: accept
+        data: originalSlotStillValid
           ? {
-              slot_id: booking.proposed_slot_id,
-              stylist_id: booking.proposed_slot.stylist_id,
               proposed_slot_id: null,
               status: 'CONFIRMED',
             }
           : {
               proposed_slot_id: null,
-              status: 'CONFIRMED',
+              status: 'NEEDS_RESCHEDULE',
             },
       });
 
-      res.json({ message: accept ? 'Reschedule accepted' : 'Reschedule rejected' });
+      res.json({
+        message: originalSlotStillValid
+          ? 'Original time kept'
+          : 'Original time is no longer available. Please choose a new time.',
+        status: originalSlotStillValid ? 'CONFIRMED' : 'NEEDS_RESCHEDULE',
+      });
     } catch (error) {
-      res.status(500).json({ error: 'Server error' });
+      res.status(400).json({ error: (error as Error).message || 'Server error' });
     }
   });
 

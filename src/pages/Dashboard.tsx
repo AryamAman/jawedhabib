@@ -73,14 +73,16 @@ export default function Dashboard() {
         },
         body: JSON.stringify({ accept })
       });
-      if (res.ok) {
-        toast.success(accept ? 'New time accepted' : 'Original time kept');
-        fetchBookings();
-      } else {
-        toast.error('Failed to respond to reschedule');
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to respond to reschedule');
       }
+
+      toast.success(data.message || (accept ? 'New time accepted' : 'Original time kept'));
+      fetchBookings();
     } catch (err) {
-      toast.error('An error occurred');
+      toast.error(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 
