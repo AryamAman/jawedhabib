@@ -1,78 +1,75 @@
 # Jawed Habib BITS Pilani - Salon Booking Portal
 
-A luxury salon booking portal built exclusively for BITS Pilani students.
+A salon booking portal built for BITS Pilani students, with a shared student/admin scheduling experience and a compact horizontal timeline workflow.
 
 ## Tech Stack
-- **Frontend**: React, Vite, Tailwind CSS, Framer Motion, React Router
-- **Backend**: Node.js, Express.js
-- **Database**: SQLite (via Prisma ORM) - easily swappable to PostgreSQL
-- **Authentication**: JWT & bcrypt
 
-## Getting Started
+- Frontend: React, Vite, Tailwind CSS, Framer Motion, React Router
+- Backend: Node.js, Express.js
+- Database: PostgreSQL via Prisma ORM
+- Authentication: JWT, bcrypt, Google OAuth
 
-### Prerequisites
-- Node.js (v18+)
-- npm
-
-### Installation
+## Local Setup
 
 1. Install dependencies:
    ```bash
    npm install
    ```
-
-2. Set up the database:
-   The project is currently configured to use SQLite for easy local development.
+2. Copy `.env.example` to `.env` and fill in your values.
+3. Apply migrations:
    ```bash
-   npx prisma db push
+   npx prisma migrate deploy
    ```
-
-3. Seed the database with sample data (Services, Stylists, and Slots):
+4. Seed base data:
    ```bash
    npx tsx seed.ts
    ```
-
-4. Start the development server:
+5. Start the app:
    ```bash
    npm run dev
    ```
 
-### Switching to PostgreSQL (Production)
+## Deploying to Vercel
 
-To switch from SQLite to PostgreSQL for production deployment (e.g., on Supabase or Railway):
+1. Push this repository to GitHub.
+2. Import the repository into Vercel.
+3. Set these environment variables in Vercel:
+   - `APP_URL`
+   - `DATABASE_URL`
+   - `JWT_SECRET`
+   - `ADMIN_EMAILS`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+4. Optional first-deploy bootstrap variables:
+   - `ADMIN_BOOTSTRAP_EMAIL`
+   - `ADMIN_BOOTSTRAP_PASSWORD`
+5. Optional protected manual seeding secret:
+   - `SEED_SECRET`
+6. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the frontend.
 
-1. Open `prisma/schema.prisma`
-2. Change the provider to `postgresql`:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-3. Add your PostgreSQL connection string to `.env`:
-   ```env
-   DATABASE_URL="postgresql://user:password@host:port/database"
-   ```
-4. Run Prisma migrations:
-   ```bash
-   npx prisma migrate dev --name init
-   ```
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
+For the target production URL, set:
 
 ```env
-# JWT Secret for authentication
-JWT_SECRET="your-super-secret-jwt-key"
-
-# Database URL (if using PostgreSQL)
-# DATABASE_URL="postgresql://..."
+APP_URL="https://jawedhabib.vercel.app"
 ```
 
-## Features
-- **Student Authentication**: Only `@pilani.bits-pilani.ac.in` emails are allowed to sign up.
-- **Booking System**: Select service, stylist, date, and time. Booked slots are disabled.
-- **Student Dashboard**: View upcoming and past appointments. Cancel appointments.
-- **Admin Dashboard**: View all bookings across the salon.
-- **Luxury Design**: Minimalist aesthetic inspired by high-end salons.
+## Environment Variables
+
+```env
+APP_URL="https://jawedhabib.vercel.app"
+DATABASE_URL="postgresql://username:password@host:5432/jawedhabib?schema=public"
+JWT_SECRET="replace-with-a-long-random-secret"
+ADMIN_BOOTSTRAP_EMAIL="admin@pilani.bits-pilani.ac.in"
+ADMIN_BOOTSTRAP_PASSWORD="replace-with-a-strong-password"
+ADMIN_EMAILS="admin@pilani.bits-pilani.ac.in"
+SEED_SECRET="replace-with-another-random-secret"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GEMINI_API_KEY=""
+```
+
+## Notes
+
+- The app now expects a hosted PostgreSQL database for production.
+- Local SQLite files are intentionally ignored and should not be committed.
+- Student and admin views use the same booking color language for availability, bookings, unavailable time, and reschedules.

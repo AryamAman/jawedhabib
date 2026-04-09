@@ -2,15 +2,24 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+const bootstrapAdminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || 'admin@example.com';
+const bootstrapAdminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || 'admin123';
+
+const timelineSteps = Array.from({ length: 120 }, (_, index) => {
+  const totalMinutes = (10 * 60) + (index * 5);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+});
 
 async function seed() {
   if ((await prisma.admin.count()) === 0) {
-    const password_hash = await bcrypt.hash('admin123', 10);
+    const password_hash = await bcrypt.hash(bootstrapAdminPassword, 10);
     await prisma.admin.create({
       data: {
-        email: 'admin@example.com',
-        password_hash
-      }
+        email: bootstrapAdminEmail,
+        password_hash,
+      },
     });
   }
 
@@ -22,7 +31,10 @@ async function seed() {
         { name: 'Hair Coloring', duration_minutes: 120, price: 2500 },
         { name: 'Beard Grooming', duration_minutes: 30, price: 300 },
         { name: 'Hair Treatment', duration_minutes: 60, price: 1500 },
-      ]
+        { name: 'Head Massage', duration_minutes: 20, price: 400 },
+        { name: 'Facial', duration_minutes: 45, price: 1200 },
+        { name: 'Shave', duration_minutes: 20, price: 250 },
+      ],
     });
   }
 
@@ -31,33 +43,37 @@ async function seed() {
       data: [
         { name: 'Rahul Sharma', role: 'Senior Stylist', bio: 'Expert in modern cuts and coloring.' },
         { name: 'Priya Patel', role: 'Hair Specialist', bio: 'Specializes in hair treatments and styling.' },
-        { name: 'Amit Kumar', role: 'Barber', bio: 'Master of beard grooming and classic cuts.' }
-      ]
+        { name: 'Amit Kumar', role: 'Barber', bio: 'Master of beard grooming and classic cuts.' },
+      ],
     });
   }
 
   const stylist = await prisma.stylist.findFirst();
   if (stylist && (await prisma.appointmentSlot.count()) === 0) {
-    const today = new Date();
     const slots = [];
-    for (let i = 0; i < 7; i++) {
+    const today = new Date();
+
+    for (let i = 0; i < 7; i += 1) {
       const date = new Date(today);
       date.setDate(date.getDate() + i);
       const dateStr = date.toISOString().split('T')[0];
-      
-      ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00'].forEach(time => {
+
+      timelineSteps.forEach((time) => {
         slots.push({
           date: dateStr,
           time,
           stylist_id: stylist.id,
-          is_available: true
+          status: 'AVAILABLE',
         });
       });
     }
+
     await prisma.appointmentSlot.createMany({ data: slots });
   }
 
   console.log('Database seeded');
 }
 
-seed().catch(console.error).finally(() => prisma.$disconnect());
+seed()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

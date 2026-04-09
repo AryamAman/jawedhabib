@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Student {
@@ -50,10 +50,13 @@ model AppointmentSlot {
   date         String   // YYYY-MM-DD
   time         String   // HH:MM
   stylist_id   String
-  status       String   @default("AVAILABLE") // AVAILABLE, PENDING, BOOKED, UNAVAILABLE
+  status       String   @default("AVAILABLE") // AVAILABLE, UNAVAILABLE
   stylist      Stylist  @relation(fields: [stylist_id], references: [id])
   bookings     Booking[] @relation("CurrentSlot")
   proposed_for Booking[] @relation("ProposedSlot")
+
+  @@unique([date, time, stylist_id])
+  @@index([date, stylist_id, time])
 }
 
 model Booking {
@@ -62,6 +65,7 @@ model Booking {
   stylist_id       String
   slot_id          String
   proposed_slot_id String?
+  duration_minutes Int             @default(0)
   status           String          @default("PENDING") // PENDING, CONFIRMED, REJECTED, CANCELLED, RESCHEDULE_PROPOSED
   created_at       DateTime        @default(now())
   

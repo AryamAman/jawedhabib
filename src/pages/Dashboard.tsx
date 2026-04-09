@@ -4,14 +4,16 @@ import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
+import { addMinutes, formatTimeRange } from '../lib/scheduling';
 
 interface Booking {
   id: string;
   status: string;
-  services: { name: string; price: number; duration_minutes: number }[];
-  stylist: { name: string };
-  slot: { date: string; time: string };
-  proposed_slot?: { date: string; time: string } | null;
+  duration_minutes: number;
+  services: { id: string; name: string; price: number; duration_minutes: number }[];
+  stylist: { id: string; name: string };
+  slot: { id: string; date: string; time: string };
+  proposed_slot?: { id: string; date: string; time: string } | null;
 }
 
 export default function Dashboard() {
@@ -100,6 +102,12 @@ export default function Dashboard() {
     window.location.href = '/login';
   };
 
+  const getBookingDuration = (booking: Booking) => (
+    booking.duration_minutes > 0
+      ? booking.duration_minutes
+      : booking.services.reduce((total, service) => total + service.duration_minutes, 0)
+  );
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <motion.div 
@@ -147,39 +155,53 @@ export default function Dashboard() {
                     </div>
                     <span className={clsx(
                       "text-xs uppercase tracking-widest px-3 py-1",
-                      booking.status === 'CONFIRMED' ? "bg-stone-900 text-white" : 
-                      (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') ? "bg-stone-200 text-stone-800" :
-                      booking.status === 'NEEDS_RESCHEDULE' ? "bg-purple-100 text-purple-900 border border-purple-300" :
-                      "bg-yellow-200 text-yellow-900"
+                      booking.status === 'CONFIRMED' ? "bg-stone-900 text-white" :
+                      booking.status === 'PENDING' ? "bg-green-100 text-green-900 border border-green-300" :
+                      (booking.status === 'RESCHEDULE_PENDING' || booking.status === 'NEEDS_RESCHEDULE' || booking.status === 'RESCHEDULE_PROPOSED')
+                        ? "bg-purple-100 text-purple-900 border border-purple-300"
+                        : "bg-stone-200 text-stone-800"
                     )}>
-                      {booking.status === 'RESCHEDULE_PROPOSED' ? 'Action Required' : booking.status === 'NEEDS_RESCHEDULE' ? 'Requested to Reschedule' : booking.status}
+                      {booking.status === 'RESCHEDULE_PROPOSED'
+                        ? 'Reschedule Proposed'
+                        : booking.status === 'NEEDS_RESCHEDULE'
+                          ? 'Requested to Reschedule'
+                          : booking.status === 'RESCHEDULE_PENDING'
+                            ? 'Rescheduled'
+                            : booking.status}
                     </span>
                   </div>
                   
                   {booking.status === 'RESCHEDULE_PROPOSED' && booking.proposed_slot ? (
-                    <div className="mb-8 bg-white p-4 border border-yellow-200 rounded-sm">
-                      <p className="text-sm text-yellow-800 mb-4">
+                    <div className="mb-8 bg-purple-50 p-4 border border-purple-200 rounded-sm">
+                      <p className="text-sm text-purple-800 mb-4">
                         The salon has proposed a new time for your appointment:
                       </p>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-stone-500 uppercase tracking-widest">Original</span>
-                        <span className="line-through text-stone-400">{format(parseISO(booking.slot.date), 'MMM d')} at {booking.slot.time}</span>
+                        <span className="line-through text-stone-400">
+                          {format(parseISO(booking.slot.date), 'MMM d')} • {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, getBookingDuration(booking)))}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm font-medium">
-                        <span className="text-yellow-800 uppercase tracking-widest">New Time</span>
-                        <span className="text-yellow-900">{format(parseISO(booking.proposed_slot.date), 'MMM d, yyyy')} at {booking.proposed_slot.time}</span>
+                        <span className="text-purple-800 uppercase tracking-widest">New Time</span>
+                        <span className="text-purple-900">
+                          {format(parseISO(booking.proposed_slot.date), 'MMM d, yyyy')} • {formatTimeRange(
+                            booking.proposed_slot.time,
+                            addMinutes(booking.proposed_slot.time, getBookingDuration(booking)),
+                          )}
+                        </span>
                       </div>
                       
                       <div className="flex gap-2 mt-6">
                         <button 
                           onClick={() => handleRescheduleResponse(booking.id, true)}
-                          className="flex-1 bg-yellow-600 text-white py-2 text-xs uppercase tracking-widest hover:bg-yellow-700"
+                          className="flex-1 bg-purple-700 text-white py-2 text-xs uppercase tracking-widest hover:bg-purple-800"
                         >
                           Accept New Time
                         </button>
                         <button 
                           onClick={() => handleRescheduleResponse(booking.id, false)}
-                          className="flex-1 bg-white border border-yellow-600 text-yellow-800 py-2 text-xs uppercase tracking-widest hover:bg-yellow-50"
+                          className="flex-1 bg-white border border-purple-600 text-purple-800 py-2 text-xs uppercase tracking-widest hover:bg-purple-50"
                         >
                           Keep Original
                         </button>
@@ -192,7 +214,16 @@ export default function Dashboard() {
                       </p>
                       <div className="space-y-2">
                         <button 
-                          onClick={() => navigate('/book', { state: { rescheduleBookingId: booking.id, currentStylist: booking.stylist.id, currentServices: booking.services.map(s => s.id), oldSlotId: booking.slot.id } })}
+                          onClick={() => navigate('/book', {
+                            state: {
+                              rescheduleBookingId: booking.id,
+                              currentStylist: booking.stylist.id,
+                              currentServices: booking.services.map(s => s.id),
+                              oldSlotId: booking.slot.id,
+                              oldDate: booking.slot.date,
+                              oldTime: booking.slot.time,
+                            },
+                          })}
                           className="w-full bg-purple-600 text-white py-3 text-xs uppercase tracking-widest hover:bg-purple-700 transition-colors"
                         >
                           Accept Rescheduling
@@ -213,7 +244,13 @@ export default function Dashboard() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-stone-500 uppercase tracking-widest">Time</span>
-                        <span className="font-medium">{booking.slot.time}</span>
+                        <span className="font-medium">
+                          {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, getBookingDuration(booking)))}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-stone-500 uppercase tracking-widest">Duration</span>
+                        <span className="font-medium">{getBookingDuration(booking)} mins</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-stone-500 uppercase tracking-widest">Price</span>
@@ -247,7 +284,10 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <h3 className="font-serif text-lg mb-1">{booking.services.map(s => s.name).join(', ')}</h3>
                     <p className="text-xs uppercase tracking-widest text-stone-500">
-                      {format(parseISO(booking.slot.date), 'MMM d, yyyy')} at {booking.slot.time} • {booking.stylist.name}
+                      {format(parseISO(booking.slot.date), 'MMM d, yyyy')} • {formatTimeRange(
+                        booking.slot.time,
+                        addMinutes(booking.slot.time, getBookingDuration(booking)),
+                      )} • {booking.stylist.name}
                     </p>
                   </div>
                   <div className="text-right">
