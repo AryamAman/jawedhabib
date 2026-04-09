@@ -4,8 +4,6 @@ import { format, parseISO, addDays, startOfToday } from 'date-fns';
 import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { X } from 'lucide-react';
-
 interface Booking {
   id: string;
   status: string;
@@ -30,10 +28,8 @@ export default function AdminDashboard() {
   const [slots, setSlots] = useState<Slot[]>([]);
   
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ id: string, type: 'CANCELLED' | 'NEEDS_RESCHEDULE' | 'REJECTED' } | null>(null);
   
-  // Reschedule Modal State
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-
   const navigate = useNavigate();
   
 
@@ -205,12 +201,11 @@ export default function AdminDashboard() {
     <div 
       draggable={booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING'}
       onDragStart={(e) => onDragStart(e, booking.id)}
-      onClick={() => setSelectedBooking(booking)}
       className={clsx(
-        "bg-white border p-4 shadow-sm mb-4 cursor-pointer transition-colors",
-        (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') ? "active:cursor-grabbing border-stone-200 hover:border-stone-400" : "border-stone-200 hover:border-stone-400",
-        booking.status === 'RESCHEDULE_PENDING' && "border-purple-300 bg-purple-50 hover:border-purple-400",
-        booking.status === 'PENDING' && "border-green-300 bg-green-50 hover:border-green-400"
+        "bg-white border p-5 shadow-sm mb-4 transition-colors",
+        (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') ? "active:cursor-grabbing border-stone-200 hover:border-stone-400 cursor-grab" : "border-stone-200",
+        booking.status === 'RESCHEDULE_PENDING' && "border-purple-300 bg-purple-50",
+        booking.status === 'PENDING' && "border-green-300 bg-green-50"
       )}
     >
       <div className="flex justify-between items-start mb-2">
@@ -231,6 +226,76 @@ export default function AdminDashboard() {
       <div className="text-xs text-stone-500">
         Stylist: {booking.stylist.name} <br/>
         Services: {booking.services.map(s => s.name).join(', ')}
+      </div>
+
+      <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-stone-200/50">
+        {confirmAction?.id === booking.id && confirmAction.type === 'REJECTED' ? (
+          <div className="flex-1 bg-red-50 border border-red-200 p-3 text-center transition-all animate-in fade-in zoom-in-95 duration-200">
+            <span className="block text-red-800 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-medium">Reject this request?</span>
+            <div className="flex gap-2 items-center">
+              <button onClick={() => { handleStatusChange(booking.id, 'REJECTED'); setConfirmAction(null); }} className="flex-1 bg-red-600 text-white py-2 text-[10px] uppercase tracking-widest hover:bg-red-700 transition">Yes</button>
+              <button onClick={() => setConfirmAction(null)} className="flex-1 bg-white border border-red-200 text-red-600 py-2 text-[10px] uppercase tracking-widest hover:bg-red-50 transition">Cancel</button>
+            </div>
+          </div>
+        ) : confirmAction?.id === booking.id && confirmAction.type === 'CANCELLED' ? (
+          <div className="flex-1 bg-red-50 border border-red-200 p-3 text-center transition-all animate-in fade-in zoom-in-95 duration-200">
+            <span className="block text-red-800 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-medium">Cancel this booking?</span>
+            <div className="flex gap-2 items-center">
+              <button onClick={() => { handleStatusChange(booking.id, 'CANCELLED'); setConfirmAction(null); }} className="flex-1 bg-red-600 text-white py-2 text-[10px] uppercase tracking-widest hover:bg-red-700 transition">Yes</button>
+              <button onClick={() => setConfirmAction(null)} className="flex-1 bg-white border border-red-200 text-red-600 py-2 text-[10px] uppercase tracking-widest hover:bg-red-50 transition">Cancel</button>
+            </div>
+          </div>
+        ) : confirmAction?.id === booking.id && confirmAction.type === 'NEEDS_RESCHEDULE' ? (
+          <div className="flex-1 bg-stone-100 border border-stone-300 p-3 text-center transition-all animate-in fade-in zoom-in-95 duration-200">
+            <span className="block text-stone-800 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-medium">Ask to Reschedule?</span>
+            <div className="flex gap-2 items-center">
+              <button onClick={() => { handleStatusChange(booking.id, 'NEEDS_RESCHEDULE'); setConfirmAction(null); }} className="flex-1 bg-stone-900 text-white py-2 text-[10px] uppercase tracking-widest hover:bg-stone-800 transition">Yes</button>
+              <button onClick={() => setConfirmAction(null)} className="flex-1 bg-white border border-stone-200 text-stone-600 py-2 text-[10px] uppercase tracking-widest hover:bg-stone-50 transition">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {(booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') && (
+              <>
+                <button 
+                  onClick={() => handleStatusChange(booking.id, 'CONFIRMED')}
+                  className="flex-1 min-w-[70px] bg-green-600 text-white py-2 text-[10px] sm:text-xs uppercase tracking-widest hover:bg-green-700 transition-colors"
+                >
+                  Accept
+                </button>
+                <button 
+                  onClick={() => setConfirmAction({ id: booking.id, type: 'REJECTED' })}
+                  className="flex-1 min-w-[70px] bg-red-50 text-red-600 py-2 text-[10px] sm:text-xs uppercase tracking-widest hover:bg-red-100 transition-colors"
+                >
+                  Reject
+                </button>
+                <button 
+                  onClick={() => setConfirmAction({ id: booking.id, type: 'NEEDS_RESCHEDULE' })}
+                  className="flex-[2] min-w-[120px] bg-stone-900 text-white py-2 text-[10px] sm:text-xs uppercase tracking-widest hover:bg-stone-800 transition-colors"
+                >
+                  Reschedule
+                </button>
+              </>
+            )}
+
+            {booking.status === 'CONFIRMED' && (
+              <>
+                <button 
+                  onClick={() => setConfirmAction({ id: booking.id, type: 'CANCELLED' })}
+                  className="flex-1 bg-white border border-red-200 text-red-600 py-2 text-[10px] sm:text-xs uppercase tracking-widest hover:bg-red-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setConfirmAction({ id: booking.id, type: 'NEEDS_RESCHEDULE' })}
+                  className="flex-1 bg-stone-900 text-white py-2 text-[10px] sm:text-xs uppercase tracking-widest hover:bg-stone-800 transition-colors"
+                >
+                  Reschedule
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -278,15 +343,12 @@ export default function AdminDashboard() {
           <p className="text-sm uppercase tracking-widest text-stone-500">Manage salon operations</p>
         </div>
         <div className="flex gap-4">
-          {activeTab === 'bookings' && (
-            <button 
-              onClick={fetchBookings}
-              disabled={isRefreshing}
-              className="px-6 py-3 text-sm uppercase tracking-widest bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50"
-            >
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-          )}
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 text-sm uppercase tracking-widest bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors"
+          >
+            Refresh
+          </button>
           <button 
             onClick={() => setActiveTab('bookings')}
             className={clsx(
@@ -444,78 +506,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Action Modal */}
-      <AnimatePresence>
-        {selectedBooking && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md shadow-xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-stone-200 flex justify-between items-center">
-                <h2 className="text-xl font-serif text-stone-900">Manage Booking</h2>
-                <button onClick={() => setSelectedBooking(null)} className="text-stone-400 hover:text-stone-900">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-6">
-                <p className="text-sm text-stone-600 mb-6 font-medium">
-                  {selectedBooking.student.name} • {selectedBooking.status}
-                </p>
-
-                <div className="space-y-3">
-                  {(selectedBooking.status === 'PENDING' || selectedBooking.status === 'RESCHEDULE_PENDING') && (
-                    <div className="flex gap-3 mb-6">
-                      <button 
-                        onClick={() => { handleStatusChange(selectedBooking.id, 'CONFIRMED'); setSelectedBooking(null); }}
-                        className="flex-1 bg-green-600 text-white py-3 text-sm uppercase tracking-widest hover:bg-green-700"
-                      >
-                        Accept
-                      </button>
-                      <button 
-                        onClick={() => { handleStatusChange(selectedBooking.id, 'REJECTED'); setSelectedBooking(null); }}
-                        className="flex-1 bg-red-50 text-red-600 py-3 text-sm uppercase tracking-widest hover:bg-red-100"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-
-                  {(selectedBooking.status === 'CONFIRMED' || selectedBooking.status === 'PENDING' || selectedBooking.status === 'RESCHEDULE_PENDING') && (
-                    <>
-                      <button 
-                        onClick={() => {
-                          if (confirm('Are you sure you want to cancel this booking?')) {
-                            handleStatusChange(selectedBooking.id, 'CANCELLED');
-                            setSelectedBooking(null);
-                          }
-                        }}
-                        className="w-full bg-white border border-red-200 text-red-600 py-3 text-sm uppercase tracking-widest hover:bg-red-50"
-                      >
-                        Cancel Booking
-                      </button>
-                      
-                      <button 
-                        onClick={() => {
-                          handleStatusChange(selectedBooking.id, 'NEEDS_RESCHEDULE');
-                          setSelectedBooking(null);
-                        }}
-                        className="w-full bg-stone-900 text-white py-3 text-sm uppercase tracking-widest hover:bg-stone-800"
-                      >
-                        Ask to Reschedule
-                      </button>
-                      <p className="text-xs text-stone-500 mt-2 text-center">Asking to reschedule will prompt the customer to pick a new slot and will free up the current slot.</p>
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

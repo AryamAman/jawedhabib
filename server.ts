@@ -316,9 +316,12 @@ const PORT = 3000;
           throw new Error('Slot is no longer available');
         }
 
-        // Double check if a booking already exists for this slot
-        const existingBooking = await tx.booking.findUnique({
-          where: { slot_id }
+        // Double check if an active booking already exists for this slot
+        const existingBooking = await tx.booking.findFirst({
+          where: { 
+            slot_id,
+            status: { in: ['PENDING', 'CONFIRMED', 'RESCHEDULE_PENDING', 'RESCHEDULE_PROPOSED'] }
+          }
         });
         if (existingBooking) {
           throw new Error('Slot is already booked');
