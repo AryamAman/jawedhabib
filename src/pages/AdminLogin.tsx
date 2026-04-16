@@ -8,7 +8,9 @@ export default function AdminLogin() {
 
   const handleGoogleLogin = async () => {
     try {
-      const response = await fetch('/api/auth/google/url?flow=admin');
+      const response = await fetch(`/api/auth/google/url?flow=admin&ts=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to get auth URL');
       }

@@ -38,7 +38,9 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     try {
-      const response = await fetch('/api/auth/google/url?flow=student');
+      const response = await fetch(`/api/auth/google/url?flow=student&ts=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to get auth URL');
       }

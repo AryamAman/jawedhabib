@@ -40,7 +40,9 @@ export default function Signup() {
 
   const handleGoogleLogin = async () => {
     try {
-      const response = await fetch('/api/auth/google/url');
+      const response = await fetch(`/api/auth/google/url?ts=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to get auth URL');
       }

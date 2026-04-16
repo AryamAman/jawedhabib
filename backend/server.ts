@@ -62,6 +62,9 @@ const getBaseUrl = () => {
 };
 
 const APP_URL = getBaseUrl();
+const GOOGLE_CALLBACK_PATH = process.env.GOOGLE_CALLBACK_PATH || '/api/auth/callback/google';
+const LEGACY_GOOGLE_CALLBACK_PATH = '/api/auth/google/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${APP_URL}${GOOGLE_CALLBACK_PATH}`;
 const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? requireProductionEnv('JWT_SECRET') : 'super-secret-jwt-key-for-bits-pilani');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -195,8 +198,11 @@ app.set('trust proxy', 1);
       return res.status(503).json({ error: 'Google sign-in is not configured yet' });
     }
 
-    const redirectUri = `${APP_URL}/api/auth/google/callback`;
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
     const url = client.generateAuthUrl({
       access_type: 'offline',
       scope: ['email', 'profile'],
@@ -206,14 +212,17 @@ app.set('trust proxy', 1);
     res.json({ url });
   });
 
-  app.get('/api/auth/google/callback', async (req, res) => {
+  app.get([GOOGLE_CALLBACK_PATH, LEGACY_GOOGLE_CALLBACK_PATH], async (req, res) => {
     const { code } = req.query;
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
       return res.status(503).send('Google sign-in is not configured yet');
     }
 
-    const redirectUri = `${APP_URL}/api/auth/google/callback`;
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
     
     try {
       const { tokens } = await client.getToken(code as string);
