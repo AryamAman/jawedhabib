@@ -19,7 +19,7 @@ import {
   normalizeBaseSlotStatus,
   rangesOverlap,
   timeToMinutes,
-} from '../src/lib/scheduling';
+} from '../src/lib/scheduling.js';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
