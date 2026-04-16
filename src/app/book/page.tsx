@@ -1,9 +1,10 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-
-const BookPage = dynamic(() => import('@/src/views/Book'), { ssr: false });
+import { Suspense } from 'react';
+import BookPage from '@/src/views/Book';
 
 export default function Page() {
-  return <BookPage />;
+  return (
+    <Suspense fallback={null}>
+      <BookPage />
+    </Suspense>
+  );
 }

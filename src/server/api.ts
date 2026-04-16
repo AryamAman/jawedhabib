@@ -55,6 +55,13 @@ const authCookieOptions = {
   path: '/',
   maxAge: WEEK_IN_SECONDS,
 };
+const INTERACTIVE_TRANSACTION_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 15_000,
+};
+const SHOULD_AUTO_BOOTSTRAP = !isProduction || process.env.AUTO_BOOTSTRAP_ON_REQUEST === 'true';
+const PUBLIC_CACHE_TTL_SECONDS = 60 * 5;
+const PUBLIC_CACHE_TTL_MS = PUBLIC_CACHE_TTL_SECONDS * 1000;
 
 const seededServices = [
   { name: 'Haircut', duration_minutes: 30, price: 500 },
@@ -140,6 +147,38 @@ const htmlResponse = (html: string, status = 200) =>
   });
 
 const jsonResponse = (body: unknown, status = 200) => NextResponse.json(body, { status });
+const cachedJsonResponse = (body: unknown, maxAgeSeconds = PUBLIC_CACHE_TTL_SECONDS) =>
+  NextResponse.json(body, {
+    status: 200,
+    headers: {
+      'Cache-Control': `public, s-maxage=${maxAgeSeconds}, stale-while-revalidate=${maxAgeSeconds * 2}`,
+    },
+  });
+
+type PublicCacheKey = 'services' | 'stylists';
+
+const publicDataCache = new Map<PublicCacheKey, { expiresAt: number; value: unknown }>();
+
+const clearPublicDataCache = () => {
+  publicDataCache.clear();
+};
+
+const getCachedPublicData = async <T>(key: PublicCacheKey, loader: () => Promise<T>) => {
+  const cached = publicDataCache.get(key);
+  const now = Date.now();
+
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const value = await loader();
+  publicDataCache.set(key, {
+    value,
+    expiresAt: now + PUBLIC_CACHE_TTL_MS,
+  });
+
+  return value;
+};
 
 const errorResponse = (error: unknown, fallbackMessage = 'Server error') => {
   if (error instanceof HttpError) {
@@ -275,14 +314,12 @@ const buildScheduleBooking = (
   };
 };
 
-const getSchedulePayload = async (
+const buildSchedulePayload = async (
   date: string,
   stylistId: string,
   includePrivateDetails: boolean,
   runner: PrismaRunner = prisma,
 ) => {
-  await ensureDaySlots(date, stylistId, runner);
-
   const [slots, bookings] = await Promise.all([
     runner.appointmentSlot.findMany({
       where: { date, stylist_id: stylistId },
@@ -318,11 +355,22 @@ const getSchedulePayload = async (
   };
 };
 
+const getSchedulePayload = async (
+  date: string,
+  stylistId: string,
+  includePrivateDetails: boolean,
+  runner: PrismaRunner = prisma,
+) => {
+  await ensureDaySlots(date, stylistId, runner);
+  return buildSchedulePayload(date, stylistId, includePrivateDetails, runner);
+};
+
 const validateWindowAvailability = async (options: {
   runner?: PrismaRunner;
   slotId: string;
   durationMinutes: number;
   excludeBookingId?: string;
+  skipEnsureDaySlots?: boolean;
 }) => {
   const runner = options.runner ?? prisma;
   const slot = await runner.appointmentSlot.findUnique({ where: { id: options.slotId } });
@@ -331,7 +379,9 @@ const validateWindowAvailability = async (options: {
     throw new Error('Slot not found');
   }
 
-  const schedule = await getSchedulePayload(slot.date, slot.stylist_id, false, runner);
+  const schedule = options.skipEnsureDaySlots
+    ? await buildSchedulePayload(slot.date, slot.stylist_id, false, runner)
+    : await getSchedulePayload(slot.date, slot.stylist_id, false, runner);
   const isAvailable = isStartTimeSelectable({
     slotTime: slot.time,
     slots: schedule.slots,
@@ -470,6 +520,10 @@ const seedTimelineSlots = async () => {
 
 let appReadyPromise: Promise<void> | null = null;
 const ensureAppReady = () => {
+  if (!SHOULD_AUTO_BOOTSTRAP) {
+    return Promise.resolve();
+  }
+
   if (!appReadyPromise) {
     appReadyPromise = (async () => {
       await seedBaseData();
@@ -858,13 +912,13 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
   }
 
   if (method === 'GET' && path === '/services') {
-    const services = await prisma.service.findMany();
-    return jsonResponse(services);
+    const services = await getCachedPublicData('services', () => prisma.service.findMany());
+    return cachedJsonResponse(services);
   }
 
   if (method === 'GET' && path === '/stylists') {
-    const stylists = await prisma.stylist.findMany();
-    return jsonResponse(stylists);
+    const stylists = await getCachedPublicData('stylists', () => prisma.stylist.findMany());
+    return cachedJsonResponse(stylists);
   }
 
   if (method === 'GET' && path === '/slots') {
@@ -896,20 +950,21 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
         return jsonResponse({ error: 'At least one service must be selected' }, 400);
       }
 
+      const services = await prisma.service.findMany({
+        where: { id: { in: service_ids } },
+      });
+
+      if (services.length !== service_ids.length) {
+        throw new Error('One or more services could not be found');
+      }
+
+      const durationMinutes = services.reduce((total, service) => total + service.duration_minutes, 0);
       const booking = await prisma.$transaction(async (tx) => {
-        const services = await tx.service.findMany({
-          where: { id: { in: service_ids } },
-        });
-
-        if (services.length !== service_ids.length) {
-          throw new Error('One or more services could not be found');
-        }
-
-        const durationMinutes = services.reduce((total, service) => total + service.duration_minutes, 0);
         const slot = await validateWindowAvailability({
           runner: tx,
           slotId: slot_id || '',
           durationMinutes,
+          skipEnsureDaySlots: true,
         });
 
         if (slot.stylist_id !== stylist_id) {
@@ -933,7 +988,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
             stylist: true,
           },
         });
-      });
+      }, INTERACTIVE_TRANSACTION_OPTIONS);
 
       return jsonResponse({ message: 'Booking successful', booking });
     } catch (error) {
@@ -1016,6 +1071,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
           slotId: new_slot_id || '',
           durationMinutes,
           excludeBookingId: booking.id,
+          skipEnsureDaySlots: true,
         });
 
         await tx.booking.update({
@@ -1027,7 +1083,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
             proposed_slot_id: null,
           },
         });
-      });
+      }, INTERACTIVE_TRANSACTION_OPTIONS);
 
       return jsonResponse({ message: 'Rescheduled successfully' });
     } catch (error) {
@@ -1264,7 +1320,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
             data: { status: slotUpdate.status },
           });
         }
-      });
+      }, INTERACTIVE_TRANSACTION_OPTIONS);
 
       return jsonResponse({ message: 'Action undone successfully' });
     } catch (error) {
@@ -1328,6 +1384,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
           slotId: new_slot_id || '',
           durationMinutes,
           excludeBookingId: booking.id,
+          skipEnsureDaySlots: true,
         });
 
         await tx.booking.update({
@@ -1337,7 +1394,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
             status: 'RESCHEDULE_PROPOSED',
           },
         });
-      });
+      }, INTERACTIVE_TRANSACTION_OPTIONS);
 
       return jsonResponse({ message: 'New time proposed successfully' });
     } catch (error) {
@@ -1395,7 +1452,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
           endTime: end_time,
           status,
         });
-      });
+      }, INTERACTIVE_TRANSACTION_OPTIONS);
 
       return jsonResponse({ message: `Range marked ${status.toLowerCase()}` });
     } catch (error) {
@@ -1430,7 +1487,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
           endTime,
           status,
         });
-      });
+      }, INTERACTIVE_TRANSACTION_OPTIONS);
 
       return jsonResponse({ message: `Slot marked ${status.toLowerCase()}` });
     } catch (error) {
@@ -1448,6 +1505,7 @@ export async function handleApiRequest(req: NextRequest, segments: string[]) {
     try {
       await seedBaseData();
       await seedTimelineSlots();
+      clearPublicDataCache();
       return jsonResponse({ message: 'Database seeded' });
     } catch (error) {
       return errorResponse(error, 'Manual seed failed');

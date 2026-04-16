@@ -1,8 +1,4 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-
-const AdminLoginPage = dynamic(() => import('@/src/views/AdminLogin'), { ssr: false });
+import AdminLoginPage from '@/src/views/AdminLogin';
 
 export default function Page() {
   return <AdminLoginPage />;

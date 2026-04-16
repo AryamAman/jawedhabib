@@ -48,6 +48,8 @@ export default function Stylists() {
                   alt={stylist.name}
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
                   referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-stone-900 text-white text-6xl font-serif">

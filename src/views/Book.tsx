@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { addDays, format, startOfToday } from 'date-fns';
 import { clsx } from 'clsx';
 import ScheduleLegend from '../components/ScheduleLegend';
+import { getStudentToken } from '../lib/client-auth';
 import {
   DisplaySlotStatus,
   ScheduleBooking,
@@ -67,7 +68,7 @@ export default function Book() {
   const location = useLocation();
   const rescheduleState = (location.state as RescheduleState | null) ?? null;
   const isRescheduling = Boolean(rescheduleState?.rescheduleBookingId);
-  const isLoggedIn = Boolean(localStorage.getItem('token'));
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   const bookingDuration = selectedServices.reduce((total, id) => {
     const service = services.find((candidate) => candidate.id === id);
@@ -77,6 +78,14 @@ export default function Book() {
   const dates = Array.from({ length: 7 }).map((_, index) => addDays(startOfToday(), index));
 
   useEffect(() => {
+    setIsLoggedIn(Boolean(getStudentToken()));
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn === null) {
+      return;
+    }
+
     if (!isLoggedIn) {
       toast.error('Please login to book an appointment');
       navigate('/login');
@@ -179,7 +188,7 @@ export default function Book() {
         method: isRescheduling ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getStudentToken() ?? ''}`,
         },
         body: JSON.stringify(isRescheduling ? {
           new_slot_id: selectedSlot,

@@ -14,6 +14,9 @@ export default function Home() {
             alt="Luxury Salon Interior" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-black/40"></div>
         </div>
@@ -75,11 +78,13 @@ export default function Home() {
               >
                 <div className="relative h-[400px] overflow-hidden mb-6">
                   <img 
-                    src={service.img} 
-                    alt={service.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
+                  src={service.img} 
+                  alt={service.name} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
+                />
                 </div>
                 <h3 className="text-xl font-serif text-center group-hover:text-stone-600 transition-colors">{service.name}</h3>
               </motion.div>
@@ -122,6 +127,8 @@ export default function Home() {
                     alt={stylist.name} 
                     className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
                     referrerPolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
                 <h3 className="text-lg font-serif mb-1">{stylist.name}</h3>

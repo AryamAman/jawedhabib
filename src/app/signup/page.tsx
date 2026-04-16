@@ -1,8 +1,4 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-
-const SignupPage = dynamic(() => import('@/src/views/Signup'), { ssr: false });
+import SignupPage from '@/src/views/Signup';
 
 export default function Page() {
   return <SignupPage />;

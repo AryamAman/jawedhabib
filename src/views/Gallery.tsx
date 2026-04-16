@@ -38,6 +38,8 @@ export default function Gallery() {
               alt={`Gallery image ${i + 1}`} 
               className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-105"
               referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
             />
           </motion.div>
         ))}
