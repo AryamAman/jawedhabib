@@ -795,35 +795,31 @@ app.set('trust proxy', 1);
       }
 
       const durationMinutes = services.reduce((total, service) => total + service.duration_minutes, 0);
-      const booking = await runInteractiveTransaction(async (tx) => {
-        const slot = await validateWindowAvailability({
-          runner: tx,
-          slotId: slot_id,
-          durationMinutes,
-          skipEnsureDaySlots: true,
-        });
+      const slot = await validateWindowAvailability({
+        slotId: slot_id,
+        durationMinutes,
+      });
 
-        if (slot.stylist_id !== stylist_id) {
-          throw new Error('Selected time does not belong to the chosen stylist');
-        }
+      if (slot.stylist_id !== stylist_id) {
+        throw new Error('Selected time does not belong to the chosen stylist');
+      }
 
-        return tx.booking.create({
-          data: {
-            student_id,
-            stylist_id,
-            slot_id,
-            duration_minutes: durationMinutes,
-            status: 'PENDING',
-            services: {
-              connect: service_ids.map((id: string) => ({ id })),
-            },
+      const booking = await prisma.booking.create({
+        data: {
+          student_id,
+          stylist_id,
+          slot_id,
+          duration_minutes: durationMinutes,
+          status: 'PENDING',
+          services: {
+            connect: service_ids.map((id: string) => ({ id })),
           },
-          include: {
-            slot: true,
-            services: true,
-            stylist: true,
-          },
-        });
+        },
+        include: {
+          slot: true,
+          services: true,
+          stylist: true,
+        },
       });
 
       res.json({ message: 'Booking successful', booking });
@@ -896,25 +892,21 @@ app.set('trust proxy', 1);
         return res.status(400).json({ error: 'Cannot reschedule to the exact same time.' });
       }
 
-      await runInteractiveTransaction(async (tx) => {
-        const durationMinutes = getBookingDurationMinutes(booking);
-        const newSlot = await validateWindowAvailability({
-          runner: tx,
-          slotId: new_slot_id,
-          durationMinutes,
-          excludeBookingId: booking.id,
-          skipEnsureDaySlots: true,
-        });
+      const durationMinutes = getBookingDurationMinutes(booking);
+      const newSlot = await validateWindowAvailability({
+        slotId: new_slot_id,
+        durationMinutes,
+        excludeBookingId: booking.id,
+      });
 
-        await tx.booking.update({
-          where: { id },
-          data: {
-            slot_id: new_slot_id,
-            stylist_id: newSlot.stylist_id,
-            status: 'RESCHEDULE_PENDING',
-            proposed_slot_id: null,
-          },
-        });
+      await prisma.booking.update({
+        where: { id },
+        data: {
+          slot_id: new_slot_id,
+          stylist_id: newSlot.stylist_id,
+          status: 'RESCHEDULE_PENDING',
+          proposed_slot_id: null,
+        },
       });
 
       res.json({ message: 'Rescheduled successfully' });
@@ -1183,23 +1175,19 @@ app.set('trust proxy', 1);
         return res.status(400).json({ error: 'Choose a different time to reschedule this booking' });
       }
 
-      await runInteractiveTransaction(async (tx) => {
-        const durationMinutes = getBookingDurationMinutes(booking);
-        await validateWindowAvailability({
-          runner: tx,
-          slotId: new_slot_id,
-          durationMinutes,
-          excludeBookingId: booking.id,
-          skipEnsureDaySlots: true,
-        });
+      const durationMinutes = getBookingDurationMinutes(booking);
+      await validateWindowAvailability({
+        slotId: new_slot_id,
+        durationMinutes,
+        excludeBookingId: booking.id,
+      });
 
-        await tx.booking.update({
-          where: { id },
-          data: {
-            proposed_slot_id: new_slot_id,
-            status: 'RESCHEDULE_PROPOSED',
-          },
-        });
+      await prisma.booking.update({
+        where: { id },
+        data: {
+          proposed_slot_id: new_slot_id,
+          status: 'RESCHEDULE_PROPOSED',
+        },
       });
 
       res.json({ message: 'New time proposed successfully' });
