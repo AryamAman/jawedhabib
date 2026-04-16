@@ -2,19 +2,29 @@
 
 import { Link, useNavigate } from 'react-router-dom';
 import { Scissors, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { clearAllTokens, getAuthState, subscribeToAuthState } from '../lib/client-auth';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [authState, setAuthState] = useState({
+    isLoggedIn: false,
+    isAdminLoggedIn: false,
+  });
   const navigate = useNavigate();
-  
-  // Basic auth check (in a real app, use context)
-  const isLoggedIn = !!localStorage.getItem('token');
-  const isAdminLoggedIn = !!localStorage.getItem('adminToken');
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setAuthState(getAuthState());
+    };
+
+    syncAuthState();
+
+    return subscribeToAuthState(syncAuthState);
+  }, []);
 
   const handleLogout = async () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('adminToken');
+    clearAllTokens();
     await fetch('/api/auth/logout', { method: 'POST' });
     navigate('/');
     window.location.reload();
@@ -37,12 +47,12 @@ export default function Navbar() {
             <Link to="/stylists" className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Stylists</Link>
             <Link to="/gallery" className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Gallery</Link>
             
-            {isAdminLoggedIn ? (
+            {authState.isAdminLoggedIn ? (
               <>
                 <Link to="/admin" className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Admin</Link>
                 <button onClick={handleLogout} className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Logout</button>
               </>
-            ) : isLoggedIn ? (
+            ) : authState.isLoggedIn ? (
               <>
                 <Link to="/dashboard" className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Dashboard</Link>
                 <button onClick={handleLogout} className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Logout</button>
@@ -72,12 +82,12 @@ export default function Navbar() {
             <Link to="/services" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Services</Link>
             <Link to="/stylists" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Stylists</Link>
             <Link to="/gallery" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Gallery</Link>
-            {isAdminLoggedIn ? (
+            {authState.isAdminLoggedIn ? (
               <>
                 <Link to="/admin" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Admin</Link>
                 <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-base uppercase tracking-widest text-stone-600">Logout</button>
               </>
-            ) : isLoggedIn ? (
+            ) : authState.isLoggedIn ? (
               <>
                 <Link to="/dashboard" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Dashboard</Link>
                 <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-base uppercase tracking-widest text-stone-600">Logout</button>

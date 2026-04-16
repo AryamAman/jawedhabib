@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { isTrustedAuthMessage } from '../lib/oauth';
+import { setAdminToken } from '../lib/client-auth';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function AdminLogin() {
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         if (event.data.role === 'admin') {
-          localStorage.setItem('adminToken', event.data.token);
+          setAdminToken(event.data.token);
           toast.success('Admin login successful');
           window.location.href = '/admin';
         } else {

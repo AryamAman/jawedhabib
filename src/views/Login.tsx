@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { isTrustedAuthMessage } from '../lib/oauth';
+import { setAdminToken, setStudentToken } from '../lib/client-auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,7 +29,7 @@ export default function Login() {
       const data = await res.json();
       
       if (res.ok) {
-        localStorage.setItem('token', data.token);
+        setStudentToken(data.token);
         toast.success('Login successful');
         window.location.href = '/dashboard';
       } else {
@@ -70,11 +71,11 @@ export default function Login() {
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         if (event.data.role === 'admin') {
            // shouldn't happen via student flow, but if it does, redirect to admin
-           localStorage.setItem('adminToken', event.data.token);
+           setAdminToken(event.data.token);
            toast.success('Admin login successful');
            window.location.href = '/admin';
         } else {
-           localStorage.setItem('token', event.data.token);
+           setStudentToken(event.data.token);
            toast.success('Login successful');
            window.location.href = '/dashboard';
         }

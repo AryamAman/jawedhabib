@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { isTrustedAuthMessage } from '../lib/oauth';
+import { setStudentToken } from '../lib/client-auth';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -30,7 +31,7 @@ export default function Signup() {
       const data = await res.json();
       
       if (res.ok) {
-        localStorage.setItem('token', data.token);
+        setStudentToken(data.token);
         toast.success('Signup successful');
         window.location.href = '/dashboard';
       } else {
@@ -70,7 +71,7 @@ export default function Signup() {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        localStorage.setItem('token', event.data.token);
+        setStudentToken(event.data.token);
         toast.success('Login successful');
         window.location.href = '/dashboard';
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
 import { addMinutes, formatTimeRange } from '../lib/scheduling';
+import { clearStudentToken, getStudentToken } from '../lib/client-auth';
 
 interface Booking {
   id: string;
@@ -21,74 +22,208 @@ interface Booking {
 export default function Dashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'redirecting' | 'error'>('loading');
   const navigate = useNavigate();
 
-  const fetchBookings = () => {
-    fetch('/api/student/bookings', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
-      .then(data => setBookings(data));
+  const redirectToLogin = (message?: string) => {
+    clearStudentToken();
+    setStatus('redirecting');
+
+    if (message) {
+      toast.error(message);
+    }
+
+    navigate('/login', { replace: true });
+  };
+
+  const fetchBookings = async (token: string) => {
+    const res = await fetch('/api/student/bookings', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.status === 401) {
+      throw new Error('SESSION_EXPIRED');
+    }
+
+    if (!res.ok) {
+      throw new Error('Failed to load bookings');
+    }
+
+    const data = await res.json();
+    setBookings(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
-    fetch('/api/auth/me', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Unauthorized');
-        return res.json();
-      })
-      .then(data => setUser(data.user))
-      .catch(() => {
-        navigate('/login');
-      });
+    let isCancelled = false;
 
-    fetchBookings();
+    const loadDashboard = async () => {
+      const token = getStudentToken();
+
+      if (!token) {
+        redirectToLogin();
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.status === 401) {
+          throw new Error('SESSION_EXPIRED');
+        }
+
+        if (!res.ok) {
+          throw new Error('Failed to load your profile');
+        }
+
+        const data = await res.json();
+
+        if (isCancelled) {
+          return;
+        }
+
+        setUser(data.user);
+        await fetchBookings(token);
+
+        if (!isCancelled) {
+          setStatus('ready');
+        }
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        if (error instanceof Error && error.message === 'SESSION_EXPIRED') {
+          redirectToLogin('Your session expired. Please sign in again.');
+          return;
+        }
+
+        console.error(error);
+        setStatus('error');
+        toast.error('Unable to load your dashboard right now.');
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [navigate]);
 
+  const getTokenOrRedirect = () => {
+    const token = getStudentToken();
+
+    if (!token) {
+      redirectToLogin('Please sign in again.');
+      return null;
+    }
+
+    return token;
+  };
+
+  const handleUnauthorizedResponse = async (res: Response, fallbackMessage: string) => {
+    if (res.status === 401) {
+      redirectToLogin('Your session expired. Please sign in again.');
+      return false;
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error || fallbackMessage);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleCancel = async (id: string) => {
-    // We can't use window.confirm in an iframe easily, but let's use a simple toast or just cancel
+    const token = getTokenOrRedirect();
+
+    if (!token) {
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/student/cancel/${id}`, { 
+      const res = await fetch(`/api/student/cancel/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        toast.success('Booking cancelled');
-        fetchBookings();
-      } else {
-        toast.error('Failed to cancel booking');
+
+      const okay = await handleUnauthorizedResponse(res, 'Failed to cancel booking');
+      if (!okay) {
+        return;
       }
+
+      toast.success('Booking cancelled');
+      await fetchBookings(token);
     } catch (err) {
       toast.error('An error occurred');
     }
   };
 
   const handleRescheduleResponse = async (id: string, accept: boolean) => {
+    const token = getTokenOrRedirect();
+
+    if (!token) {
+      return;
+    }
+
     try {
       const res = await fetch(`/api/student/bookings/${id}/reschedule-response`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ accept })
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to respond to reschedule');
+      const okay = await handleUnauthorizedResponse(res, 'Failed to respond to reschedule');
+      if (!okay) {
+        return;
       }
 
+      const data = await res.json();
       toast.success(data.message || (accept ? 'New time accepted' : 'Original time kept'));
-      fetchBookings();
+      await fetchBookings(token);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 
-  if (!user) return null;
+  if (status === 'loading' || status === 'redirecting') {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="bg-white border border-stone-200 shadow-sm p-10 text-center">
+          <h1 className="text-3xl font-serif text-stone-900">Loading Dashboard</h1>
+          <p className="mt-4 text-sm uppercase tracking-widest text-stone-500">
+            Checking your booking details...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error' || !user) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="bg-white border border-stone-200 shadow-sm p-10 text-center">
+          <h1 className="text-3xl font-serif text-stone-900">Unable to Load Dashboard</h1>
+          <p className="mt-4 text-sm uppercase tracking-widest text-stone-500">
+            Please refresh the page or sign in again.
+          </p>
+          <button
+            onClick={() => redirectToLogin()}
+            className="mt-8 inline-flex items-center justify-center bg-stone-900 px-6 py-3 text-sm uppercase tracking-widest text-white hover:bg-stone-800 transition-colors"
+          >
+            Back To Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const activeBookings = bookings.filter(b => 
     b.status === 'NEEDS_RESCHEDULE' || b.status === 'RESCHEDULE_PENDING' ||
