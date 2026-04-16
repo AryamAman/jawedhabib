@@ -41,31 +41,48 @@ async function seed() {
   if ((await prisma.stylist.count()) === 0) {
     await prisma.stylist.createMany({
       data: [
-        { name: 'Rahul Sharma', role: 'Senior Stylist', bio: 'Expert in modern cuts and coloring.' },
-        { name: 'Priya Patel', role: 'Hair Specialist', bio: 'Specializes in hair treatments and styling.' },
-        { name: 'Amit Kumar', role: 'Barber', bio: 'Master of beard grooming and classic cuts.' },
+        {
+          name: 'Rahul Sharma',
+          role: 'Senior Stylist',
+          bio: 'Expert in modern cuts and coloring.',
+          photo: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=1974&fm=webp&fit=crop',
+        },
+        {
+          name: 'Priya Patel',
+          role: 'Hair Specialist',
+          bio: 'Specializes in hair treatments and styling.',
+          photo: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=1961&fm=webp&fit=crop',
+        },
+        {
+          name: 'Amit Kumar',
+          role: 'Barber',
+          bio: 'Master of beard grooming and classic cuts.',
+          photo: 'https://images.unsplash.com/photo-1618077360395-f3068be8e001?q=80&w=2080&fm=webp&fit=crop',
+        },
       ],
     });
   }
 
-  const stylist = await prisma.stylist.findFirst();
-  if (stylist && (await prisma.appointmentSlot.count()) === 0) {
+  const stylists = await prisma.stylist.findMany({ select: { id: true } });
+  if (stylists.length > 0 && (await prisma.appointmentSlot.count()) === 0) {
     const slots = [];
     const today = new Date();
 
-    for (let i = 0; i < 7; i += 1) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
+    for (const stylist of stylists) {
+      for (let i = 0; i < 7; i += 1) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
 
-      timelineSteps.forEach((time) => {
-        slots.push({
-          date: dateStr,
-          time,
-          stylist_id: stylist.id,
-          status: 'AVAILABLE',
+        timelineSteps.forEach((time) => {
+          slots.push({
+            date: dateStr,
+            time,
+            stylist_id: stylist.id,
+            status: 'AVAILABLE',
+          });
         });
-      });
+      }
     }
 
     await prisma.appointmentSlot.createMany({ data: slots });

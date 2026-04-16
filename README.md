@@ -1,12 +1,11 @@
 # Jawed Habib BITS Pilani - Salon Booking Portal
 
-A salon booking portal built for BITS Pilani students, with a shared student/admin scheduling experience and a compact horizontal timeline workflow.
+A salon booking portal built for BITS Pilani students, now running as a single Next.js application with shared student/admin scheduling and a compact horizontal timeline workflow.
 
 ## Tech Stack
 
-- Frontend: React, Vite, Tailwind CSS, Framer Motion, React Router
-- Backend: Node.js, Express.js
-- Database: PostgreSQL via Prisma ORM
+- Frontend + Backend: Next.js 16 App Router, React 19, Tailwind CSS 4, Framer Motion
+- Database: SQLite via Prisma ORM
 - Authentication: JWT, bcrypt, Google OAuth
 
 ## Local Setup
@@ -16,14 +15,13 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
    npm install
    ```
 2. Copy `.env.example` to `.env` and fill in your values.
-   For local PostgreSQL, you can point both `DATABASE_URL` and `DIRECT_URL` to the same direct connection string.
 3. Apply migrations:
    ```bash
-   npx prisma migrate deploy
+   npm run db:migrate:deploy
    ```
 4. Seed base data:
    ```bash
-   npx tsx seed.ts
+   npm run db:seed
    ```
 5. Start the app:
    ```bash
@@ -37,7 +35,6 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
 3. Set these environment variables in Vercel:
    - `APP_URL`
    - `DATABASE_URL`
-   - `DIRECT_URL`
    - `JWT_SECRET`
    - `ADMIN_EMAILS`
    - `GOOGLE_CLIENT_ID`
@@ -47,7 +44,7 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
    - `ADMIN_BOOTSTRAP_PASSWORD`
 5. Optional protected manual seeding secret:
    - `SEED_SECRET`
-6. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the frontend.
+6. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the Next.js app.
 
 For the target production URL, set:
 
@@ -55,12 +52,16 @@ For the target production URL, set:
 APP_URL="https://jawedhabib.vercel.app"
 ```
 
+Google OAuth should use these values:
+
+- Authorized JavaScript origins: `http://localhost:3000`, `https://jawedhabib.vercel.app`
+- Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`, `https://jawedhabib.vercel.app/api/auth/callback/google`
+
 ## Environment Variables
 
 ```env
-APP_URL="https://jawedhabib.vercel.app"
-DATABASE_URL="postgresql://username:password@pooler-host:6543/jawedhabib?schema=public"
-DIRECT_URL="postgresql://username:password@direct-host:5432/jawedhabib?schema=public"
+APP_URL="http://localhost:3000"
+DATABASE_URL="file:./dev.db"
 JWT_SECRET="replace-with-a-long-random-secret"
 ADMIN_BOOTSTRAP_EMAIL="admin@pilani.bits-pilani.ac.in"
 ADMIN_BOOTSTRAP_PASSWORD="replace-with-a-strong-password"
@@ -73,7 +74,7 @@ GEMINI_API_KEY=""
 
 ## Notes
 
-- The app now expects a hosted PostgreSQL database for production.
-- Prisma uses `DATABASE_URL` for runtime queries and `DIRECT_URL` for direct migration access.
-- Local SQLite files are intentionally ignored and should not be committed.
+- Prisma is configured against SQLite and stores the local database in `prisma/dev.db`.
+- Seed data now includes WebP stylist photos and creates initial appointment slots for every seeded stylist.
+- Vercel can build this repo, but a file-based SQLite database is not durable on Vercel's filesystem. For production writes, use a persistent SQLite-compatible backend or move the database to a persistent host.
 - Student and admin views use the same booking color language for availability, bookings, unavailable time, and reschedules.

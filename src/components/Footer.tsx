@@ -1,3 +1,5 @@
+'use client';
+
 import { Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Instagram, Facebook } from 'lucide-react';
 

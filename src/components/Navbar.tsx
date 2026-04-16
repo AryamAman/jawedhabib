@@ -1,3 +1,5 @@
+'use client';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { Scissors, Menu, X } from 'lucide-react';
 import { useState } from 'react';
