@@ -65,6 +65,7 @@ const APP_URL = getBaseUrl();
 const GOOGLE_CALLBACK_PATH = process.env.GOOGLE_CALLBACK_PATH || '/api/auth/callback/google';
 const LEGACY_GOOGLE_CALLBACK_PATH = '/api/auth/google/callback';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${APP_URL}${GOOGLE_CALLBACK_PATH}`;
+const POST_MESSAGE_TARGET_ORIGIN = APP_URL;
 const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? requireProductionEnv('JWT_SECRET') : 'super-secret-jwt-key-for-bits-pilani');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -72,23 +73,60 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((email) => 
 const ADMIN_BOOTSTRAP_EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || '';
 const ADMIN_BOOTSTRAP_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';
 const SEED_SECRET = process.env.SEED_SECRET || '';
+const SHOULD_AUTO_BOOTSTRAP = !isProduction || process.env.AUTO_BOOTSTRAP_ON_REQUEST === 'true';
+const PUBLIC_CACHE_TTL_SECONDS = 60 * 5;
+const PUBLIC_CACHE_TTL_MS = PUBLIC_CACHE_TTL_SECONDS * 1000;
 const authCookieOptions = {
   httpOnly: true,
   secure: isProduction,
   sameSite: 'lax' as const,
   path: '/',
+  maxAge: 1000 * 60 * 60 * 24 * 7,
 };
 const INTERACTIVE_TRANSACTION_OPTIONS = {
   maxWait: 10_000,
   timeout: 15_000,
 };
 
+type PublicCacheKey = 'services' | 'stylists';
+
+const publicDataCache = new Map<PublicCacheKey, { expiresAt: number; value: unknown }>();
+
+const clearPublicDataCache = () => {
+  publicDataCache.clear();
+};
+
+const getCachedPublicData = async <T>(key: PublicCacheKey, loader: () => Promise<T>) => {
+  const cached = publicDataCache.get(key);
+  const now = Date.now();
+
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const value = await loader();
+  publicDataCache.set(key, {
+    value,
+    expiresAt: now + PUBLIC_CACHE_TTL_MS,
+  });
+
+  return value;
+};
+
 const app = express();
 
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
-  app.use(express.json());
+  app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
+  app.use((req, res, next) => {
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
   app.use('/api', async (_req, res, next) => {
     try {
       await ensureAppReady();
@@ -131,7 +169,6 @@ app.set('trust proxy', 1);
 
   // Auth Routes
   app.post('/api/auth/signup', async (req, res) => {
-    console.log('Signup request received:', req.body);
     let { name, email, password, confirmPassword } = req.body;
     email = email?.trim().toLowerCase();
     
@@ -162,7 +199,6 @@ app.set('trust proxy', 1);
   });
 
   app.post('/api/auth/login', async (req, res) => {
-    console.log('Login request received:', req.body);
     let { email, password } = req.body;
     email = email?.trim().toLowerCase();
     
@@ -189,6 +225,7 @@ app.set('trust proxy', 1);
 
   app.post('/api/auth/logout', (req, res) => {
     res.clearCookie('token', authCookieOptions);
+    res.clearCookie('adminToken', authCookieOptions);
     res.json({ message: 'Logged out' });
   });
 
@@ -241,7 +278,7 @@ app.set('trust proxy', 1);
           <html><body>
             <script>
               if (window.opener) {
-                window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'No email provided by Google' }, '*');
+                window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'No email provided by Google' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
                 window.close();
               }
             </script>
@@ -281,7 +318,7 @@ app.set('trust proxy', 1);
             <html><body>
               <script>
                 if (window.opener) {
-                  window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${adminToken}', role: '${role}' }, '*');
+                  window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${adminToken}', role: '${role}' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
                   window.close();
                 } else {
                   window.location.href = '/admin';
@@ -296,7 +333,7 @@ app.set('trust proxy', 1);
             <html><body>
               <script>
                 if (window.opener) {
-                  window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'Not authorized as admin' }, '*');
+                  window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'Not authorized as admin' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
                   window.close();
                 }
               </script>
@@ -312,7 +349,7 @@ app.set('trust proxy', 1);
         <html><body>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', role: '${role}' }, '*');
+              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', role: '${role}' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
               window.close();
             } else {
               window.location.href = '/dashboard';
@@ -327,7 +364,7 @@ app.set('trust proxy', 1);
         <html><body>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'Authentication failed' }, '*');
+              window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'Authentication failed' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
               window.close();
             }
           </script>
@@ -651,7 +688,11 @@ app.set('trust proxy', 1);
   };
 
   let appReadyPromise: Promise<void> | null = null;
-  const ensureAppReady = () => {
+  const ensureAppReady = (force = false) => {
+    if (!force && !SHOULD_AUTO_BOOTSTRAP) {
+      return Promise.resolve();
+    }
+
     if (!appReadyPromise) {
       appReadyPromise = (async () => {
         await seedBaseData();
@@ -766,12 +807,14 @@ app.set('trust proxy', 1);
 
   // Public Routes
   app.get('/api/services', async (req, res) => {
-    const services = await prisma.service.findMany();
+    const services = await getCachedPublicData('services', () => prisma.service.findMany());
+    res.set('Cache-Control', `public, s-maxage=${PUBLIC_CACHE_TTL_SECONDS}, stale-while-revalidate=${PUBLIC_CACHE_TTL_SECONDS * 2}`);
     res.json(services);
   });
 
   app.get('/api/stylists', async (req, res) => {
-    const stylists = await prisma.stylist.findMany();
+    const stylists = await getCachedPublicData('stylists', () => prisma.stylist.findMany());
+    res.set('Cache-Control', `public, s-maxage=${PUBLIC_CACHE_TTL_SECONDS}, stale-while-revalidate=${PUBLIC_CACHE_TTL_SECONDS * 2}`);
     res.json(stylists);
   });
 
@@ -1296,8 +1339,9 @@ app.set('trust proxy', 1);
     }
 
     try {
-      await ensureAppReady();
+      await ensureAppReady(true);
       await seedTimelineSlots();
+      clearPublicDataCache();
       res.json({ message: 'Database seeded' });
     } catch (error) {
       console.error('Manual seed failed:', error);
@@ -1326,7 +1370,7 @@ app.set('trust proxy', 1);
       console.log(`Server running on http://localhost:${PORT}`);
 
       try {
-        await ensureAppReady();
+        await ensureAppReady(true);
         await seedTimelineSlots();
       } catch (err) {
         console.error('Auto-seeding failed:', err);

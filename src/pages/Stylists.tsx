@@ -40,12 +40,20 @@ export default function Stylists() {
             className="text-center"
           >
             <div className="w-64 h-64 mx-auto rounded-full overflow-hidden mb-8">
-              <img 
-                src={stylist.photo || `https://ui-avatars.com/api/?name=${stylist.name}&background=random`} 
-                alt={stylist.name} 
-                className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
-                referrerPolicy="no-referrer"
-              />
+              {stylist.photo ? (
+                <img 
+                  src={stylist.photo} 
+                  alt={stylist.name} 
+                  className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-stone-200 text-5xl font-serif text-stone-600">
+                  {stylist.name.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
             <h3 className="text-2xl font-serif mb-2">{stylist.name}</h3>
             <p className="text-sm uppercase tracking-widest text-stone-500 mb-4">{stylist.role}</p>

@@ -33,7 +33,7 @@ export default function AdminLogin() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost') && !event.origin.includes('jawedhabib.vercel.app')) {
+      if (event.origin !== window.location.origin) {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
