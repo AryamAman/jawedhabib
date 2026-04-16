@@ -3,7 +3,7 @@ dotenv.config();
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import path from 'path';
@@ -20,8 +20,7 @@ import {
   rangesOverlap,
   timeToMinutes,
 } from '../src/lib/scheduling';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT || 3000);
@@ -69,6 +68,10 @@ const authCookieOptions = {
   secure: isProduction,
   sameSite: 'lax' as const,
   path: '/',
+};
+const INTERACTIVE_TRANSACTION_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 15_000,
 };
 
 const app = express();
@@ -339,7 +342,51 @@ app.set('trust proxy', 1);
     }
   });
 
-  type PrismaRunner = PrismaClient | Prisma.TransactionClient;
+  type PrismaRunner = typeof prisma | Prisma.TransactionClient;
+
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const isRetryableTransactionError = (error: unknown) => {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const message = error.message;
+    return (
+      message.includes('Unable to start a transaction in the given time') ||
+      message.includes('Transaction already closed') ||
+      message.includes('Transaction not found') ||
+      message.includes('expired transaction') ||
+      message.includes('Transaction API error')
+    );
+  };
+
+  const runInteractiveTransaction = async <T>(
+    operation: (tx: Prisma.TransactionClient) => Promise<T>,
+    maxAttempts = 3,
+  ) => {
+    let attempt = 0;
+    let lastError: unknown;
+
+    while (attempt < maxAttempts) {
+      attempt += 1;
+
+      try {
+        return await prisma.$transaction(operation, INTERACTIVE_TRANSACTION_OPTIONS);
+      } catch (error) {
+        lastError = error;
+
+        if (!isRetryableTransactionError(error) || attempt >= maxAttempts) {
+          throw error;
+        }
+
+        console.warn(`Retrying transaction after transient failure (attempt ${attempt}/${maxAttempts})`);
+        await wait(attempt * 200);
+      }
+    }
+
+    throw lastError;
+  };
 
   const seededServices = [
     { name: 'Haircut', duration_minutes: 30, price: 500 },
@@ -416,9 +463,7 @@ app.set('trust proxy', 1);
     };
   };
 
-  const getSchedulePayload = async (date: string, stylistId: string, includePrivateDetails: boolean, runner: PrismaRunner = prisma) => {
-    await ensureDaySlots(date, stylistId, runner);
-
+  const buildSchedulePayload = async (date: string, stylistId: string, includePrivateDetails: boolean, runner: PrismaRunner = prisma) => {
     const [slots, bookings] = await Promise.all([
       runner.appointmentSlot.findMany({
         where: { date, stylist_id: stylistId },
@@ -454,11 +499,17 @@ app.set('trust proxy', 1);
     };
   };
 
+  const getSchedulePayload = async (date: string, stylistId: string, includePrivateDetails: boolean, runner: PrismaRunner = prisma) => {
+    await ensureDaySlots(date, stylistId, runner);
+    return buildSchedulePayload(date, stylistId, includePrivateDetails, runner);
+  };
+
   const validateWindowAvailability = async (options: {
     runner?: PrismaRunner;
     slotId: string;
     durationMinutes: number;
     excludeBookingId?: string;
+    skipEnsureDaySlots?: boolean;
   }) => {
     const runner = options.runner ?? prisma;
     const slot = await runner.appointmentSlot.findUnique({ where: { id: options.slotId } });
@@ -467,7 +518,9 @@ app.set('trust proxy', 1);
       throw new Error('Slot not found');
     }
 
-    const schedule = await getSchedulePayload(slot.date, slot.stylist_id, false, runner);
+    const schedule = options.skipEnsureDaySlots
+      ? await buildSchedulePayload(slot.date, slot.stylist_id, false, runner)
+      : await getSchedulePayload(slot.date, slot.stylist_id, false, runner);
     const isAvailable = isStartTimeSelectable({
       slotTime: slot.time,
       slots: schedule.slots,
@@ -733,20 +786,21 @@ app.set('trust proxy', 1);
     }
 
     try {
-      const booking = await prisma.$transaction(async (tx) => {
-        const services = await tx.service.findMany({
-          where: { id: { in: service_ids } },
-        });
+      const services = await prisma.service.findMany({
+        where: { id: { in: service_ids } },
+      });
 
-        if (services.length !== service_ids.length) {
-          throw new Error('One or more services could not be found');
-        }
+      if (services.length !== service_ids.length) {
+        throw new Error('One or more services could not be found');
+      }
 
-        const durationMinutes = services.reduce((total, service) => total + service.duration_minutes, 0);
+      const durationMinutes = services.reduce((total, service) => total + service.duration_minutes, 0);
+      const booking = await runInteractiveTransaction(async (tx) => {
         const slot = await validateWindowAvailability({
           runner: tx,
           slotId: slot_id,
           durationMinutes,
+          skipEnsureDaySlots: true,
         });
 
         if (slot.stylist_id !== stylist_id) {
@@ -842,13 +896,14 @@ app.set('trust proxy', 1);
         return res.status(400).json({ error: 'Cannot reschedule to the exact same time.' });
       }
 
-      await prisma.$transaction(async (tx) => {
+      await runInteractiveTransaction(async (tx) => {
         const durationMinutes = getBookingDurationMinutes(booking);
         const newSlot = await validateWindowAvailability({
           runner: tx,
           slotId: new_slot_id,
           durationMinutes,
           excludeBookingId: booking.id,
+          skipEnsureDaySlots: true,
         });
 
         await tx.booking.update({
@@ -1058,7 +1113,7 @@ app.set('trust proxy', 1);
     };
 
     try {
-      await prisma.$transaction(async (tx) => {
+      await runInteractiveTransaction(async (tx) => {
         for (const bookingUpdate of booking_updates) {
           await tx.booking.update({
             where: { id: bookingUpdate.id },
@@ -1128,13 +1183,14 @@ app.set('trust proxy', 1);
         return res.status(400).json({ error: 'Choose a different time to reschedule this booking' });
       }
 
-      await prisma.$transaction(async (tx) => {
+      await runInteractiveTransaction(async (tx) => {
         const durationMinutes = getBookingDurationMinutes(booking);
         await validateWindowAvailability({
           runner: tx,
           slotId: new_slot_id,
           durationMinutes,
           excludeBookingId: booking.id,
+          skipEnsureDaySlots: true,
         });
 
         await tx.booking.update({
@@ -1179,7 +1235,7 @@ app.set('trust proxy', 1);
     }
 
     try {
-      await prisma.$transaction(async (tx) => {
+      await runInteractiveTransaction(async (tx) => {
         await applySlotRangeStatus({
           runner: tx,
           date,
@@ -1212,7 +1268,7 @@ app.set('trust proxy', 1);
       }
 
       const endTime = addMinutes(slot.time, SLOT_INTERVAL_MINUTES);
-      await prisma.$transaction(async (tx) => {
+      await runInteractiveTransaction(async (tx) => {
         await applySlotRangeStatus({
           runner: tx,
           date: slot.date,

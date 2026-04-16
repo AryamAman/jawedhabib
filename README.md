@@ -49,6 +49,11 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
    - `SEED_SECRET`
 6. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the frontend.
 
+For Supabase-backed deployments:
+- Use the pooled connection string for `DATABASE_URL`.
+- Use the direct Postgres connection string for `DIRECT_URL`.
+- If you are using the Supabase pooler on port `6543`, keep the Prisma-safe query params on `DATABASE_URL`, such as `pgbouncer=true&connection_limit=1`.
+
 For the target production URL, set:
 
 ```env
@@ -59,7 +64,7 @@ APP_URL="https://jawedhabib.vercel.app"
 
 ```env
 APP_URL="https://jawedhabib.vercel.app"
-DATABASE_URL="postgresql://username:password@pooler-host:6543/jawedhabib?schema=public"
+DATABASE_URL="postgresql://username:password@pooler-host:6543/jawedhabib?schema=public&pgbouncer=true&connection_limit=1"
 DIRECT_URL="postgresql://username:password@direct-host:5432/jawedhabib?schema=public"
 JWT_SECRET="replace-with-a-long-random-secret"
 ADMIN_BOOTSTRAP_EMAIL="admin@pilani.bits-pilani.ac.in"
