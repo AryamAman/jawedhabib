@@ -71,6 +71,10 @@ const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? requireProductionEn
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
+const STUDENT_EMAIL_DOMAINS = (process.env.STUDENT_EMAIL_DOMAINS || 'pilani.bits-pilani.ac.in')
+  .split(',')
+  .map((domain) => domain.trim().toLowerCase())
+  .filter(Boolean);
 const ADMIN_BOOTSTRAP_EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || '';
 const ADMIN_BOOTSTRAP_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';
 const SEED_SECRET = process.env.SEED_SECRET || '';
@@ -249,85 +253,23 @@ app.disable('x-powered-by');
     </body></html>
   `;
 
+  const buildPopupErrorResponse = (error: string) => buildPopupResponse(
+    { type: 'OAUTH_AUTH_ERROR', error },
+    '/login',
+    `${error} You can close this window.`,
+  );
+
+  const isAllowedStudentEmail = (email: string) => (
+    STUDENT_EMAIL_DOMAINS.some((domain) => email.endsWith(`@${domain}`))
+  );
+
   // Auth Routes
-  app.post('/api/auth/signup', async (req, res) => {
-    let { name, email, password, confirmPassword, phone } = req.body;
-    name = name?.trim();
-    email = email?.trim().toLowerCase();
-
-    if (!name || !email || !password || !confirmPassword || !phone) {
-      return res.status(400).json({ error: 'Name, email, phone number, and password are required' });
-    }
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: 'Passwords do not match' });
-    }
-
-    const normalizedPhone = normalizePhoneNumber(phone);
-    if (!normalizedPhone) {
-      return res.status(400).json({ error: 'Enter a valid phone number' });
-    }
-
-    try {
-      const existingUser = await prisma.student.findUnique({ where: { email } });
-      if (existingUser) return res.status(400).json({ error: 'Email already registered' });
-
-      const password_hash = await bcrypt.hash(password, 10);
-      const student = await prisma.student.create({
-        data: {
-          name,
-          email,
-          password_hash,
-          phone_e164: normalizedPhone.e164,
-          phone_display: normalizedPhone.display,
-          profile_completed: true,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone_e164: true,
-          phone_display: true,
-          phone_verified: true,
-          profile_completed: true,
-        },
-      });
-
-      const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
-      res.cookie('token', token, authCookieOptions);
-      
-      res.json({ message: 'Signup successful', token, user: formatStudentProfile(student) });
-    } catch (error) {
-      if (isPrismaUniqueConstraintError(error, 'phone_e164')) {
-        return res.status(409).json({ error: 'Phone number already registered' });
-      }
-      console.error('Signup error:', error);
-      res.status(500).json({ error: 'Server error' });
-    }
+  app.post('/api/auth/signup', (_req, res) => {
+    res.status(405).json({ error: 'Student accounts must be created with Google sign-up.' });
   });
 
-  app.post('/api/auth/login', async (req, res) => {
-    let { email, password } = req.body;
-    email = email?.trim().toLowerCase();
-    
-    try {
-      const student = await prisma.student.findUnique({ where: { email } });
-      if (!student) return res.status(400).json({ error: 'Invalid credentials' });
-
-      if (!student.password_hash) {
-        return res.status(400).json({ error: 'Please sign in with Google' });
-      }
-
-      const isMatch = await bcrypt.compare(password, student.password_hash);
-      if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
-
-      const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
-      res.cookie('token', token, authCookieOptions);
-
-      res.json({ message: 'Login successful', token, user: formatStudentProfile(student) });
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ error: 'Server error' });
-    }
+  app.post('/api/auth/login', (_req, res) => {
+    res.status(405).json({ error: 'Student accounts must use Google sign-in.' });
   });
 
   app.post('/api/auth/logout', (req, res) => {
@@ -337,7 +279,7 @@ app.disable('x-powered-by');
   });
 
   app.get('/api/auth/google/url', (req, res) => {
-    const { flow } = req.query; // 'student' or 'admin'
+    const { flow } = req.query;
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
       return res.status(503).json({ error: 'Google sign-in is not configured yet' });
     }
@@ -379,44 +321,13 @@ app.disable('x-powered-by');
       const email = payload?.email?.toLowerCase();
       const name = payload?.name || 'Google User';
       const googleId = payload?.sub;
+      const flow = (req.query.state as string) || 'student_login';
 
       if (!email) {
-        return res.send(`
-          <html><body>
-            <script>
-              if (window.opener) {
-                window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'No email provided by Google' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
-                window.close();
-              }
-            </script>
-            <p>No email provided by Google. You can close this window.</p>
-          </body></html>
-        `);
-      }
-
-      let student = await prisma.student.findUnique({ where: { email } });
-      
-      if (!student) {
-        student = await prisma.student.create({
-          data: {
-            name,
-            email,
-            google_id: googleId,
-            profile_completed: false,
-          }
-        });
-      } else if (!student.google_id || student.google_id !== googleId || student.name !== name) {
-        student = await prisma.student.update({
-          where: { email },
-          data: {
-            google_id: googleId,
-            name,
-          }
-        });
+        return res.send(buildPopupErrorResponse('No email provided by Google.'));
       }
 
       let role = 'student';
-      const flow = req.query.state as string;
 
       if (flow === 'admin') {
         // Check if email is in admin whitelist
@@ -436,19 +347,61 @@ app.disable('x-powered-by');
           ));
           return;
         } else {
-          return res.send(`
-            <html><body>
-              <script>
-                if (window.opener) {
-                  window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'Not authorized as admin' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
-                  window.close();
-                }
-              </script>
-              <p>Not authorized as admin. You can close this window.</p>
-            </body></html>
-          `);
+          return res.send(buildPopupErrorResponse('Not authorized as admin.'));
         }
       }
+
+      if (!isAllowedStudentEmail(email)) {
+        return res.send(buildPopupErrorResponse('Only BITS Pilani student email IDs can access student accounts.'));
+      }
+
+      const isStudentSignup = flow === 'student_signup';
+      const isStudentLogin = flow === 'student_login' || flow === 'student';
+
+      let student = await prisma.student.findUnique({ where: { email } });
+
+      if (isStudentSignup) {
+        if (!student) {
+          student = await prisma.student.create({
+            data: {
+              name,
+              email,
+              google_id: googleId,
+              profile_completed: false,
+            },
+          });
+        } else if (student.google_id && student.google_id !== googleId) {
+          return res.send(buildPopupErrorResponse('This email is already linked to a different Google account.'));
+        } else if (student.google_id && student.profile_completed && student.phone_e164) {
+          return res.send(buildPopupErrorResponse('Student account already exists. Please sign in instead.'));
+        } else {
+          student = await prisma.student.update({
+            where: { email },
+            data: {
+              name,
+              google_id: googleId,
+            },
+          });
+        }
+      } else if (isStudentLogin) {
+        if (!student || !student.google_id) {
+          return res.send(buildPopupErrorResponse('No student account found. Please sign up first.'));
+        }
+
+        if (student.google_id !== googleId) {
+          return res.send(buildPopupErrorResponse('Use the Google account you originally signed up with.'));
+        }
+
+        if (student.name !== name) {
+          student = await prisma.student.update({
+            where: { email },
+            data: { name },
+          });
+        }
+      } else {
+        return res.send(buildPopupErrorResponse('Unknown authentication flow.'));
+      }
+
       const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, authCookieOptions);
 

@@ -7,7 +7,7 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
 - Frontend: React, Vite, Tailwind CSS, Framer Motion, React Router
 - Backend: Node.js, Express.js
 - Database: PostgreSQL via Prisma ORM
-- Authentication: JWT, bcrypt, Google OAuth
+- Authentication: JWT, Google OAuth for students, email/password or Google for admins
 
 ## Local Setup
 
@@ -40,6 +40,7 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
    - `DIRECT_URL`
    - `JWT_SECRET`
    - `ADMIN_EMAILS`
+   - `STUDENT_EMAIL_DOMAINS`
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
 4. Optional first-deploy bootstrap variables:
@@ -70,6 +71,7 @@ JWT_SECRET="replace-with-a-long-random-secret"
 ADMIN_BOOTSTRAP_EMAIL="admin@pilani.bits-pilani.ac.in"
 ADMIN_BOOTSTRAP_PASSWORD="replace-with-a-strong-password"
 ADMIN_EMAILS="admin@pilani.bits-pilani.ac.in"
+STUDENT_EMAIL_DOMAINS="pilani.bits-pilani.ac.in"
 SEED_SECRET="replace-with-another-random-secret"
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
@@ -80,5 +82,6 @@ GEMINI_API_KEY=""
 
 - The app now expects a hosted PostgreSQL database for production.
 - Prisma uses `DATABASE_URL` for runtime queries and `DIRECT_URL` for direct migration access.
+- Student signup/login is Google-only and restricted to the allowed domains in `STUDENT_EMAIL_DOMAINS`.
 - Local SQLite files are intentionally ignored and should not be committed.
 - Student and admin views use the same booking color language for availability, bookings, unavailable time, and reschedules.
