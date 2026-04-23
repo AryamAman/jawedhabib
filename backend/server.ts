@@ -20,6 +20,7 @@ import {
   rangesOverlap,
   timeToMinutes,
 } from '../src/lib/scheduling.js';
+import { normalizePhoneNumber } from '../src/lib/phone.js';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -91,6 +92,7 @@ const INTERACTIVE_TRANSACTION_OPTIONS = {
 type PublicCacheKey = 'services' | 'stylists';
 
 const publicDataCache = new Map<PublicCacheKey, { expiresAt: number; value: unknown }>();
+const PROFILE_COMPLETION_ERROR = 'Please complete your profile with a valid phone number before continuing.';
 
 const clearPublicDataCache = () => {
   publicDataCache.clear();
@@ -167,16 +169,102 @@ app.disable('x-powered-by');
     }
   };
 
+  type StudentProfileRecord = {
+    id: string;
+    name: string;
+    email: string;
+    phone_e164: string | null;
+    phone_display: string | null;
+    phone_verified: boolean;
+    profile_completed: boolean;
+  };
+
+  const formatStudentProfile = (student: StudentProfileRecord) => ({
+    id: student.id,
+    name: student.name,
+    email: student.email,
+    phone: student.phone_display ?? '',
+    phoneE164: student.phone_e164,
+    phoneVerified: student.phone_verified,
+    profileCompleted: student.profile_completed && Boolean(student.phone_e164),
+  });
+
+  const isPrismaUniqueConstraintError = (error: unknown, field: string) => {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+      return false;
+    }
+
+    const targets = Array.isArray(error.meta?.target)
+      ? error.meta?.target
+      : typeof error.meta?.target === 'string'
+        ? [error.meta.target]
+        : [];
+
+    return targets.includes(field);
+  };
+
+  const loadStudentProfileRecord = async (studentId: string) => prisma.student.findUnique({
+    where: { id: studentId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone_e164: true,
+      phone_display: true,
+      phone_verified: true,
+      profile_completed: true,
+    },
+  });
+
+  const requireCompletedStudentProfile = async (studentId: string) => {
+    const student = await loadStudentProfileRecord(studentId);
+
+    if (!student) {
+      const error = new Error('User not found');
+      error.name = 'NOT_FOUND';
+      throw error;
+    }
+
+    if (!student.profile_completed || !student.phone_e164) {
+      const error = new Error(PROFILE_COMPLETION_ERROR);
+      error.name = 'PROFILE_INCOMPLETE';
+      throw error;
+    }
+
+    return student;
+  };
+
+  const buildPopupResponse = (payload: Record<string, unknown>, fallbackPath: string, message: string) => `
+    <html><body>
+      <script>
+        const payload = ${JSON.stringify(payload)};
+        if (window.opener) {
+          window.opener.postMessage(payload, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
+          window.close();
+        } else {
+          window.location.href = ${JSON.stringify(fallbackPath)};
+        }
+      </script>
+      <p>${message}</p>
+    </body></html>
+  `;
+
   // Auth Routes
   app.post('/api/auth/signup', async (req, res) => {
-    let { name, email, password, confirmPassword } = req.body;
+    let { name, email, password, confirmPassword, phone } = req.body;
+    name = name?.trim();
     email = email?.trim().toLowerCase();
-    
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+
+    if (!name || !email || !password || !confirmPassword || !phone) {
+      return res.status(400).json({ error: 'Name, email, phone number, and password are required' });
     }
     if (password !== confirmPassword) {
       return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'Enter a valid phone number' });
     }
 
     try {
@@ -185,14 +273,33 @@ app.disable('x-powered-by');
 
       const password_hash = await bcrypt.hash(password, 10);
       const student = await prisma.student.create({
-        data: { name, email, password_hash }
+        data: {
+          name,
+          email,
+          password_hash,
+          phone_e164: normalizedPhone.e164,
+          phone_display: normalizedPhone.display,
+          profile_completed: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone_e164: true,
+          phone_display: true,
+          phone_verified: true,
+          profile_completed: true,
+        },
       });
 
       const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, authCookieOptions);
       
-      res.json({ message: 'Signup successful', token, user: { id: student.id, name: student.name, email: student.email } });
+      res.json({ message: 'Signup successful', token, user: formatStudentProfile(student) });
     } catch (error) {
+      if (isPrismaUniqueConstraintError(error, 'phone_e164')) {
+        return res.status(409).json({ error: 'Phone number already registered' });
+      }
       console.error('Signup error:', error);
       res.status(500).json({ error: 'Server error' });
     }
@@ -215,8 +322,8 @@ app.disable('x-powered-by');
 
       const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, authCookieOptions);
-      
-      res.json({ message: 'Login successful', token, user: { id: student.id, name: student.name, email: student.email } });
+
+      res.json({ message: 'Login successful', token, user: formatStudentProfile(student) });
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({ error: 'Server error' });
@@ -291,12 +398,20 @@ app.disable('x-powered-by');
       
       if (!student) {
         student = await prisma.student.create({
-          data: { name, email, google_id: googleId }
+          data: {
+            name,
+            email,
+            google_id: googleId,
+            profile_completed: false,
+          }
         });
-      } else if (!student.google_id) {
+      } else if (!student.google_id || student.google_id !== googleId || student.name !== name) {
         student = await prisma.student.update({
           where: { email },
-          data: { google_id: googleId }
+          data: {
+            google_id: googleId,
+            name,
+          }
         });
       }
 
@@ -314,19 +429,11 @@ app.disable('x-powered-by');
           role = 'admin';
           const adminToken = jwt.sign({ id: admin.id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
           res.cookie('adminToken', adminToken, authCookieOptions);
-          res.send(`
-            <html><body>
-              <script>
-                if (window.opener) {
-                  window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${adminToken}', role: '${role}' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
-                  window.close();
-                } else {
-                  window.location.href = '/admin';
-                }
-              </script>
-              <p>Authentication successful. This window should close automatically.</p>
-            </body></html>
-          `);
+          res.send(buildPopupResponse(
+            { type: 'OAUTH_AUTH_SUCCESS', token: adminToken, role },
+            '/admin',
+            'Authentication successful. This window should close automatically.',
+          ));
           return;
         } else {
           return res.send(`
@@ -344,20 +451,19 @@ app.disable('x-powered-by');
       }
       const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, authCookieOptions);
-      
-      res.send(`
-        <html><body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', role: '${role}' }, ${JSON.stringify(POST_MESSAGE_TARGET_ORIGIN)});
-              window.close();
-            } else {
-              window.location.href = '/dashboard';
-            }
-          </script>
-          <p>Authentication successful. This window should close automatically.</p>
-        </body></html>
-      `);
+
+      const formattedStudent = formatStudentProfile(student);
+      const fallbackPath = formattedStudent.profileCompleted ? '/dashboard' : '/profile';
+      res.send(buildPopupResponse(
+        {
+          type: 'OAUTH_AUTH_SUCCESS',
+          token,
+          role,
+          profileCompleted: formattedStudent.profileCompleted,
+        },
+        fallbackPath,
+        'Authentication successful. This window should close automatically.',
+      ));
     } catch (error) {
       console.error('Google OAuth error:', error);
       res.send(`
@@ -376,10 +482,81 @@ app.disable('x-powered-by');
 
   app.get('/api/auth/me', authenticate, async (req: any, res) => {
     try {
-      const student = await prisma.student.findUnique({ where: { id: req.user.id } });
+      const student = await loadStudentProfileRecord(req.user.id);
       if (!student) return res.status(404).json({ error: 'User not found' });
-      res.json({ user: { id: student.id, name: student.name, email: student.email } });
+      res.json({ user: formatStudentProfile(student) });
     } catch (error) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  app.get('/api/student/profile', authenticate, async (req: any, res) => {
+    try {
+      const student = await loadStudentProfileRecord(req.user.id);
+      if (!student) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json({ user: formatStudentProfile(student) });
+    } catch (error) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  app.put('/api/student/profile', authenticate, async (req: any, res) => {
+    let { name, phone } = req.body;
+    name = name?.trim();
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone number are required' });
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'Enter a valid phone number' });
+    }
+
+    try {
+      const currentStudent = await prisma.student.findUnique({
+        where: { id: req.user.id },
+        select: {
+          id: true,
+          phone_e164: true,
+          phone_verified: true,
+        },
+      });
+
+      if (!currentStudent) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const updatedStudent = await prisma.student.update({
+        where: { id: req.user.id },
+        data: {
+          name,
+          phone_e164: normalizedPhone.e164,
+          phone_display: normalizedPhone.display,
+          phone_verified: currentStudent.phone_e164 === normalizedPhone.e164 ? currentStudent.phone_verified : false,
+          profile_completed: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone_e164: true,
+          phone_display: true,
+          phone_verified: true,
+          profile_completed: true,
+        },
+      });
+
+      res.json({ message: 'Profile updated successfully', user: formatStudentProfile(updatedStudent) });
+    } catch (error) {
+      if (isPrismaUniqueConstraintError(error, 'phone_e164')) {
+        return res.status(409).json({ error: 'Phone number already registered' });
+      }
+
+      console.error('Profile update error:', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -844,6 +1021,8 @@ app.disable('x-powered-by');
     }
 
     try {
+      await requireCompletedStudentProfile(student_id);
+
       const services = await prisma.service.findMany({
         where: { id: { in: service_ids } },
       });
@@ -882,6 +1061,12 @@ app.disable('x-powered-by');
 
       res.json({ message: 'Booking successful', booking });
     } catch (error: any) {
+      if (error?.name === 'PROFILE_INCOMPLETE') {
+        return res.status(403).json({ error: error.message });
+      }
+      if (error?.name === 'NOT_FOUND') {
+        return res.status(404).json({ error: error.message });
+      }
       console.error('Booking error:', error);
       res.status(400).json({ error: error.message || 'Booking failed' });
     }
@@ -933,6 +1118,8 @@ app.disable('x-powered-by');
     const { new_slot_id } = req.body;
 
     try {
+      await requireCompletedStudentProfile(req.user.id);
+
       const booking = await prisma.booking.findUnique({
         where: { id },
         include: { services: true, slot: true },
@@ -969,6 +1156,12 @@ app.disable('x-powered-by');
 
       res.json({ message: 'Rescheduled successfully' });
     } catch (error: any) {
+      if (error?.name === 'PROFILE_INCOMPLETE') {
+        return res.status(403).json({ error: error.message });
+      }
+      if (error?.name === 'NOT_FOUND') {
+        return res.status(404).json({ error: error.message });
+      }
       res.status(400).json({ error: error.message || 'Server error' });
     }
   });

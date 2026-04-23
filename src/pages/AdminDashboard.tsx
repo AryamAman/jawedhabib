@@ -27,7 +27,7 @@ interface Booking {
   id: string;
   status: string;
   duration_minutes: number;
-  student: { name: string; email: string };
+  student: { name: string; email: string; phone_display?: string | null };
   services: { id: string; name: string; price: number; duration_minutes: number }[];
   stylist: { id: string; name: string };
   slot: { id: string; date: string; time: string };
@@ -663,6 +663,9 @@ export default function AdminDashboard() {
           <div>
             <h3 className="font-serif text-2xl mb-1">{booking.student.name}</h3>
             <p className="text-xs uppercase tracking-[0.22em] text-stone-500">{booking.student.email}</p>
+            {booking.student.phone_display ? (
+              <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400 mt-2">{booking.student.phone_display}</p>
+            ) : null}
           </div>
           <span className="border border-current/20 px-3 py-2 text-[11px] uppercase tracking-[0.22em]">
             {getBookingStatusLabel(booking.status)}
@@ -1403,6 +1406,9 @@ export default function AdminDashboard() {
                             <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Student</p>
                             <h5 className="font-serif text-2xl text-stone-900">{booking.student.name}</h5>
                             <p className="text-sm text-stone-600 mt-1">{booking.student.email}</p>
+                            {booking.student.phone_display ? (
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400 mt-2">{booking.student.phone_display}</p>
+                            ) : null}
                           </div>
                           <div className="border border-green-300 bg-green-100 px-4 py-3 text-right text-green-900">
                             <p className="text-[11px] uppercase tracking-[0.22em] mb-1">Confirmed Time</p>

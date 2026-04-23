@@ -1,20 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { isValidPhoneNumber } from '../lib/phone';
 
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const navigate = useNavigate();
+  const getStudentRedirectPath = (profileCompleted?: boolean) => (
+    profileCompleted ? '/dashboard' : '/profile'
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !phone || !password || !confirmPassword) {
       toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (!isValidPhoneNumber(phone)) {
+      toast.error('Enter a valid phone number');
       return;
     }
     
@@ -22,14 +31,14 @@ export default function Signup() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, confirmPassword })
+        body: JSON.stringify({ name, email, phone, password, confirmPassword })
       });
       const data = await res.json();
       
       if (res.ok) {
         localStorage.setItem('token', data.token);
         toast.success('Signup successful');
-        window.location.href = '/dashboard';
+        window.location.href = getStudentRedirectPath(data.user?.profileCompleted);
       } else {
         toast.error(data.error || 'Signup failed');
       }
@@ -71,7 +80,7 @@ export default function Signup() {
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         localStorage.setItem('token', event.data.token);
         toast.success('Login successful');
-        window.location.href = '/dashboard';
+        window.location.href = getStudentRedirectPath(event.data.profileCompleted);
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
         toast.error(event.data.error || 'Authentication failed');
       }
@@ -110,6 +119,16 @@ export default function Signup() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border-b border-stone-300 py-2 focus:outline-none focus:border-stone-900 transition-colors bg-transparent"
               placeholder="f202XXXXX@pilani.bits-pilani.ac.in"
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Phone Number</label>
+            <input 
+              type="tel" 
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full border-b border-stone-300 py-2 focus:outline-none focus:border-stone-900 transition-colors bg-transparent"
+              placeholder="+91 98765 43210"
             />
           </div>
           <div>

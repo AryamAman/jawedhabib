@@ -33,6 +33,11 @@ interface Stylist {
   role: string;
 }
 
+interface AuthUser {
+  id: string;
+  profileCompleted: boolean;
+}
+
 type RescheduleState = {
   rescheduleBookingId?: string;
   currentStylist?: string;
@@ -66,6 +71,7 @@ export default function Book() {
   const rescheduleState = (location.state as RescheduleState | null) ?? null;
   const isRescheduling = Boolean(rescheduleState?.rescheduleBookingId);
   const isLoggedIn = Boolean(localStorage.getItem('token'));
+  const [authReady, setAuthReady] = useState(false);
 
   const bookingDuration = selectedServices.reduce((total, id) => {
     const service = services.find((candidate) => candidate.id === id);
@@ -81,35 +87,81 @@ export default function Book() {
       return;
     }
 
-    fetch('/api/services')
-      .then((res) => res.json())
+    const token = localStorage.getItem('token');
+
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error('Unauthorized');
+        }
+
+        return res.json();
+      })
+      .then((data: { user: AuthUser }) => {
+        if (!data.user.profileCompleted) {
+          toast.error('Complete your profile before booking');
+          navigate('/profile');
+          return;
+        }
+
+        return Promise.all([
+          fetch('/api/services').then(async (res) => {
+            if (!res.ok) {
+              throw new Error('Unable to load services');
+            }
+
+            return res.json();
+          }),
+          fetch('/api/stylists').then(async (res) => {
+            if (!res.ok) {
+              throw new Error('Unable to load stylists');
+            }
+
+            return res.json();
+          }),
+        ]);
+      })
       .then((data) => {
-        setServices(data);
+        if (!data) {
+          return;
+        }
+
+        const [servicesData, stylistsData] = data;
+        setServices(servicesData);
+        setStylists(stylistsData);
+
         if (rescheduleState?.currentServices?.length) {
           setSelectedServices(rescheduleState.currentServices);
         }
-      })
-      .catch(() => toast.error('Unable to load services'));
 
-    fetch('/api/stylists')
-      .then((res) => res.json())
-      .then((data) => {
-        setStylists(data);
         if (rescheduleState?.currentStylist) {
           setSelectedStylist(rescheduleState.currentStylist);
-        } else if (data[0]?.id) {
-          setSelectedStylist(data[0].id);
+        } else if (stylistsData[0]?.id) {
+          setSelectedStylist(stylistsData[0].id);
         }
-      })
-      .catch(() => toast.error('Unable to load stylists'));
 
-    if (rescheduleState?.oldDate) {
-      setSelectedDate(new Date(`${rescheduleState.oldDate}T00:00:00`));
-    }
+        if (rescheduleState?.oldDate) {
+          setSelectedDate(new Date(`${rescheduleState.oldDate}T00:00:00`));
+        }
+
+        setAuthReady(true);
+      })
+      .catch((error) => {
+        if (error instanceof Error && error.message === 'Unauthorized') {
+          toast.error('Please login to continue');
+          localStorage.removeItem('token');
+          navigate('/login');
+          return;
+        }
+
+        toast.error(error instanceof Error ? error.message : 'Unable to load booking details');
+      });
   }, [isLoggedIn, navigate, rescheduleState]);
 
   useEffect(() => {
-    if (!selectedStylist) {
+    if (!authReady || !selectedStylist) {
       return;
     }
 
@@ -136,7 +188,7 @@ export default function Book() {
         toast.error('Unable to load the day timeline');
       })
       .finally(() => setLoadingSchedule(false));
-  }, [selectedStylist, selectedDate]);
+  }, [authReady, selectedStylist, selectedDate]);
 
   const selectableStartTimes = schedule && bookingDuration > 0
     ? getSelectableStartTimes({

@@ -16,9 +16,16 @@ interface Booking {
   proposed_slot?: { id: string; date: string; time: string } | null;
 }
 
+interface StudentProfile {
+  name: string;
+  email: string;
+  phone: string;
+  profileCompleted: boolean;
+}
+
 export default function Dashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<StudentProfile | null>(null);
   const navigate = useNavigate();
 
   const fetchBookings = () => {
@@ -37,12 +44,18 @@ export default function Dashboard() {
         if (!res.ok) throw new Error('Unauthorized');
         return res.json();
       })
-      .then(data => setUser(data.user))
+      .then(data => {
+        if (!data.user?.profileCompleted) {
+          navigate('/profile');
+          return;
+        }
+
+        setUser(data.user);
+        fetchBookings();
+      })
       .catch(() => {
         navigate('/login');
       });
-
-    fetchBookings();
   }, [navigate]);
 
   const handleCancel = async (id: string) => {
@@ -126,6 +139,7 @@ export default function Dashboard() {
             <div>
               <h1 className="text-3xl font-serif text-stone-900">{user.name}</h1>
               <p className="text-sm uppercase tracking-widest text-stone-500 mt-1">{user.email}</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-stone-400 mt-2">{user.phone}</p>
               <span className="inline-block mt-2 text-xs uppercase tracking-widest px-3 py-1 bg-stone-100 text-stone-600">Student</span>
             </div>
           </div>

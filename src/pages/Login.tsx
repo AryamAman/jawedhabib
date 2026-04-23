@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();
+  const getStudentRedirectPath = (profileCompleted?: boolean) => (
+    profileCompleted ? '/dashboard' : '/profile'
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +29,7 @@ export default function Login() {
       if (res.ok) {
         localStorage.setItem('token', data.token);
         toast.success('Login successful');
-        window.location.href = '/dashboard';
+        window.location.href = getStudentRedirectPath(data.user?.profileCompleted);
       } else {
         toast.error(data.error || 'Login failed');
       }
@@ -75,7 +77,7 @@ export default function Login() {
         } else {
            localStorage.setItem('token', event.data.token);
            toast.success('Login successful');
-           window.location.href = '/dashboard';
+           window.location.href = getStudentRedirectPath(event.data.profileCompleted);
         }
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
         toast.error(event.data.error || 'Authentication failed');

@@ -43,6 +43,7 @@ export default function Navbar() {
             ) : isLoggedIn ? (
               <>
                 <Link to="/dashboard" className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Dashboard</Link>
+                <Link to="/profile" className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Profile</Link>
                 <button onClick={handleLogout} className="text-sm uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors">Logout</button>
                 <Link to="/book" className="bg-stone-900 text-white px-6 py-3 text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors">Book Now</Link>
               </>
@@ -78,6 +79,7 @@ export default function Navbar() {
             ) : isLoggedIn ? (
               <>
                 <Link to="/dashboard" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Dashboard</Link>
+                <Link to="/profile" className="block px-3 py-2 text-base uppercase tracking-widest text-stone-600">Profile</Link>
                 <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-base uppercase tracking-widest text-stone-600">Logout</button>
               </>
             ) : (
