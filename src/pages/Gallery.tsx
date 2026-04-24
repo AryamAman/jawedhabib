@@ -11,15 +11,16 @@ export default function Gallery() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+    <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         className="text-center mb-16"
       >
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-6">Gallery</h1>
-        <div className="w-12 h-[1px] bg-stone-900 mx-auto"></div>
+        <h1 className="section-heading text-4xl md:text-5xl font-serif mb-6">Gallery</h1>
+        <div className="editorial-divider"></div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -29,18 +30,19 @@ export default function Gallery() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: i * 0.1 }}
-            className="group overflow-hidden cursor-pointer"
+            className="reveal-card group overflow-hidden rounded-[var(--radius-md)]"
           >
             <img 
               src={src} 
               alt={`Gallery image ${i + 1}`} 
-              className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-105"
+              className="surface-card surface-card-hover h-[400px] w-full object-cover transition-transform duration-700 group-hover:scale-105"
               referrerPolicy="no-referrer"
               loading="lazy"
               decoding="async"
             />
           </motion.div>
         ))}
+      </div>
       </div>
     </div>
   );

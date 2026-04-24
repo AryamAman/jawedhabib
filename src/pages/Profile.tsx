@@ -106,54 +106,55 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-24">
+    <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
+      <div className="mx-auto max-w-2xl px-4 py-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white border border-stone-200 p-8 shadow-sm"
+        className="auth-card"
       >
         <div className="mb-10 text-center">
-          <h1 className="text-3xl font-serif text-stone-900 mb-4">
+          <h1 className="section-heading text-3xl font-serif mb-4">
             {profile.profileCompleted ? 'Your Profile' : 'Complete Your Profile'}
           </h1>
-          <div className="w-8 h-[1px] bg-stone-900 mx-auto mb-5"></div>
-          <p className="text-sm uppercase tracking-[0.22em] text-stone-500">
+          <div className="editorial-divider mb-5"></div>
+          <p className="auth-subtitle">
             We use your Gmail name and email. Add a phone number so booking and admin records stay complete.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Full Name</label>
+            <label className="editorial-label">Full Name</label>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full border-b border-stone-300 py-2 focus:outline-none focus:border-stone-900 transition-colors bg-transparent"
+              className="editorial-input"
               placeholder="Your full name"
             />
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">BITS Email</label>
+            <label className="editorial-label">BITS Email</label>
             <input
               type="email"
               value={profile.email}
               readOnly
-              className="w-full border-b border-stone-200 py-2 text-stone-500 bg-transparent cursor-not-allowed"
+              className="editorial-input cursor-not-allowed"
             />
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Phone Number</label>
+            <label className="editorial-label">Phone Number</label>
             <input
               type="tel"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="w-full border-b border-stone-300 py-2 focus:outline-none focus:border-stone-900 transition-colors bg-transparent"
+              className="editorial-input"
               placeholder="+91 98765 43210"
             />
-            <p className="mt-3 text-xs uppercase tracking-[0.18em] text-stone-400">
+            <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">
               Use an Indian number or include your full international code.
             </p>
           </div>
@@ -161,12 +162,13 @@ export default function Profile() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-stone-900 text-white py-4 text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors disabled:opacity-70"
+            className="editorial-btn editorial-btn-dark w-full py-4 disabled:opacity-70"
           >
             {saving ? 'Saving...' : 'Save Profile'}
           </button>
         </form>
       </motion.div>
+      </div>
     </div>
   );
 }

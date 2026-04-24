@@ -6,6 +6,7 @@ import { Undo2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import ScheduleLegend from '../components/ScheduleLegend';
+import EmptyState from '../components/EmptyState';
 import {
   DisplaySlotStatus,
   ScheduleBooking,
@@ -360,14 +361,31 @@ export default function AdminDashboard() {
   };
 
   const getBookingCardStatus = (booking: Booking) => {
-    if (booking.displayStatus === 'Requested') return 'bg-green-50 border-green-200 text-green-900';
+    if (booking.displayStatus === 'Requested') return 'booking-status booking-status--requested';
     if (booking.displayStatus === 'Rescheduled' || booking.displayStatus === 'Reschedule Proposed' || booking.displayStatus === 'Asked to Reschedule') {
-      return 'bg-purple-50 border-purple-200 text-purple-900';
+      return 'booking-status booking-status--reschedule';
     }
-    if (booking.displayStatus === 'Cancelled' || booking.displayStatus === 'Rejected' || booking.displayStatus === 'Expired') {
-      return 'bg-stone-100 border-stone-200 text-stone-700';
+    if (booking.displayStatus === 'Cancelled') {
+      return 'booking-status booking-status--cancelled';
     }
-    return 'bg-white border-stone-200 text-stone-900';
+    if (booking.displayStatus === 'Rejected') {
+      return 'booking-status booking-status--rejected';
+    }
+    if (booking.displayStatus === 'Expired') {
+      return 'booking-status booking-status--expired';
+    }
+    return 'booking-status booking-status--confirmed';
+  };
+
+  const getBookingCardTone = (booking: Booking) => {
+    if (booking.displayStatus === 'Cancelled') return 'booking-card--cancelled';
+    if (booking.displayStatus === 'Rejected') return 'booking-card--rejected';
+    if (booking.displayStatus === 'Expired') return 'booking-card--expired';
+    if (booking.displayStatus === 'Rescheduled' || booking.displayStatus === 'Reschedule Proposed' || booking.displayStatus === 'Asked to Reschedule') {
+      return 'booking-card--rescheduled';
+    }
+    if (booking.displayStatus === 'Requested') return 'booking-card--requested';
+    return 'booking-card--confirmed';
   };
 
   const getBookingStatusLabel = (booking: Booking) => booking.displayStatus;
@@ -654,18 +672,18 @@ export default function AdminDashboard() {
 
   const getTrackCellClasses = (status: DisplaySlotStatus, canDrop: boolean) => {
     if (status === 'BOOKED') {
-      return 'bg-red-300/85';
+      return 'timeline-cell--booked';
     }
 
     if (status === 'UNAVAILABLE') {
-      return 'bg-yellow-300/85';
+      return 'timeline-cell--unavailable';
     }
 
     if (status === 'RESCHEDULED') {
-      return 'bg-purple-300/85';
+      return 'timeline-cell--rescheduled';
     }
 
-    return canDrop ? 'bg-green-300/85 hover:bg-green-400/85' : 'bg-green-300/70';
+    return canDrop ? 'timeline-cell--available timeline-cell--interactive' : 'timeline-cell--available';
   };
 
   const currentDraggedBooking = currentScheduleBookings.find((booking) => booking.id === draggingBookingId) ?? null;
@@ -718,28 +736,28 @@ export default function AdminDashboard() {
     const endTime = addMinutes(booking.slot.time, durationMinutes);
 
     return (
-      <div className={clsx('border p-5 shadow-sm', getBookingCardStatus(booking))}>
+      <div className={clsx('booking-card p-5', getBookingCardTone(booking))}>
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h3 className="font-serif text-2xl mb-1">{booking.student.name}</h3>
-            <p className="text-xs uppercase tracking-[0.22em] text-stone-500">{booking.student.email}</p>
+            <h3 className="font-serif text-2xl mb-1 text-[color:var(--text-dark)]">{booking.student.name}</h3>
+            <p className="text-xs uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">{booking.student.email}</p>
             {booking.student.phone_display ? (
-              <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400 mt-2">{booking.student.phone_display}</p>
+              <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">{booking.student.phone_display}</p>
             ) : null}
           </div>
-          <span className="border border-current/20 px-3 py-2 text-[11px] uppercase tracking-[0.22em]">
+          <span className={clsx(getBookingCardStatus(booking))}>
             {getBookingStatusLabel(booking)}
           </span>
         </div>
 
-        <div className="space-y-2 text-sm text-stone-700">
+        <div className="space-y-2 text-sm text-[color:var(--text-muted-dark)]">
           <p>{format(parseISO(booking.slot.date), 'MMM d, yyyy')} • {formatTimeRange(booking.slot.time, endTime)}</p>
           <p>Stylist: {booking.stylist.name}</p>
           <p>Services: {booking.services.map((service) => service.name).join(', ')}</p>
         </div>
 
         {booking.proposed_slot && (
-          <div className="mt-4 border border-purple-200 bg-purple-100/70 p-3 text-sm text-purple-900">
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[color:var(--status-reschedule-border)] bg-[color:var(--status-reschedule-bg)] p-3 text-sm text-[color:var(--text-dark)]">
             Proposed: {format(parseISO(booking.proposed_slot.date), 'MMM d, yyyy')} • {formatTimeRange(
               booking.proposed_slot.time,
               addMinutes(booking.proposed_slot.time, durationMinutes),
@@ -753,7 +771,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => handleStatusChange(booking.id, 'CONFIRMED')}
-                className="border border-green-700 bg-green-700 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-white hover:bg-green-800"
+                className="editorial-btn editorial-btn-dark px-4 py-3"
               >
                 Accept
               </button>
@@ -764,7 +782,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => handleStatusChange(booking.id, 'REJECTED', 'Reject this booking request?')}
-                className="border border-red-300 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-red-700 hover:bg-red-50"
+                className="editorial-btn editorial-btn-subtle px-4 py-3"
               >
                 Reject
               </button>
@@ -775,7 +793,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => handleStatusChange(booking.id, 'NEEDS_RESCHEDULE', 'Ask the student to pick a new time?')}
-                className="border border-purple-300 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-purple-800 hover:bg-purple-50"
+                className="editorial-btn editorial-btn-soft px-4 py-3"
               >
                 Reschedule
               </button>
@@ -786,20 +804,20 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => handleStatusChange(booking.id, 'CANCELLED', 'Cancel this confirmed appointment?')}
-              className="border border-red-300 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-red-700 hover:bg-red-50"
+              className="editorial-btn editorial-btn-subtle px-4 py-3"
             >
               Cancel
             </button>
           )}
 
           {booking.displayStatus === 'Asked to Reschedule' && (
-            <span className="text-[11px] uppercase tracking-[0.22em] text-purple-700">
+            <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--status-reschedule-text)]">
               Student needs to pick a new time
             </span>
           )}
 
           {booking.displayStatus === 'Expired' && (
-            <span className="text-[11px] uppercase tracking-[0.22em] text-stone-500">
+            <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">
               Expired and non-actionable
             </span>
           )}
@@ -814,21 +832,22 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 py-24">
+    <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
+      <div className="w-full max-w-7xl mx-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 py-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-16"
       >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12 border border-stone-200 bg-white p-8 shadow-sm">
+        <div className="surface-card editorial-border-left mb-12 flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-stone-900 text-2xl font-serif text-white">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--btn-dark-bg)] text-2xl font-serif text-[color:var(--status-confirmed-text)]">
               {admin?.email?.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-3xl font-serif text-stone-900">Admin</h1>
-              <p className="mt-1 text-sm uppercase tracking-[0.24em] text-stone-500">{admin?.email}</p>
-              <span className="mt-2 inline-block bg-stone-100 px-3 py-1 text-xs uppercase tracking-[0.22em] text-stone-600">
+              <h1 className="section-heading text-3xl font-serif">Admin</h1>
+              <p className="mt-1 text-sm uppercase tracking-[0.24em] text-[color:var(--text-secondary)]">{admin?.email}</p>
+              <span className="booking-status booking-status--requested mt-2 inline-flex">
                 Scheduling Control
               </span>
             </div>
@@ -837,7 +856,7 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={handleLogout}
-            className="self-start border border-stone-300 px-6 py-3 text-sm uppercase tracking-[0.22em] text-stone-600 hover:bg-stone-50"
+            className="editorial-btn editorial-btn-subtle self-start"
           >
             Sign Out
           </button>
@@ -845,14 +864,14 @@ export default function AdminDashboard() {
 
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
           <div>
-            <h2 className="text-4xl md:text-5xl font-serif text-stone-900 mb-4">Admin Dashboard</h2>
-            <p className="text-sm uppercase tracking-[0.28em] text-stone-500">Compact horizontal scheduler and booking controls</p>
+            <h2 className="section-heading mb-4 text-4xl md:text-5xl font-serif">Admin Dashboard</h2>
+            <p className="text-sm uppercase tracking-[0.28em] text-[color:var(--text-secondary)]">Compact horizontal scheduler and booking controls</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={refreshAdminData}
-              className="border border-stone-200 bg-white px-5 py-3 text-sm uppercase tracking-[0.22em] text-stone-600 hover:bg-stone-50"
+              className="editorial-btn editorial-btn-subtle"
             >
               Refresh
             </button>
@@ -860,10 +879,10 @@ export default function AdminDashboard() {
               type="button"
               onClick={() => setActiveTab('bookings')}
               className={clsx(
-                'px-5 py-3 text-sm uppercase tracking-[0.22em]',
+                'editorial-btn rounded-[6px] border px-5 py-3 text-sm uppercase tracking-[0.22em]',
                 activeTab === 'bookings'
-                  ? 'bg-stone-900 text-white'
-                  : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50',
+                  ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                  : 'border-[color:var(--border-light)] bg-[color:var(--surface-elevated)] text-[color:var(--text-muted-dark)] hover:bg-[color:var(--status-expired-bg)]',
               )}
             >
               Bookings
@@ -872,10 +891,10 @@ export default function AdminDashboard() {
               type="button"
               onClick={() => setActiveTab('slots')}
               className={clsx(
-                'px-5 py-3 text-sm uppercase tracking-[0.22em]',
+                'editorial-btn rounded-[6px] border px-5 py-3 text-sm uppercase tracking-[0.22em]',
                 activeTab === 'slots'
-                  ? 'bg-stone-900 text-white'
-                  : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50',
+                  ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                  : 'border-[color:var(--border-light)] bg-[color:var(--surface-elevated)] text-[color:var(--text-muted-dark)] hover:bg-[color:var(--status-expired-bg)]',
               )}
             >
               Day Timeline
@@ -884,10 +903,10 @@ export default function AdminDashboard() {
               type="button"
               onClick={() => setActiveTab('records')}
               className={clsx(
-                'px-5 py-3 text-sm uppercase tracking-[0.22em]',
+                'editorial-btn rounded-[6px] border px-5 py-3 text-sm uppercase tracking-[0.22em]',
                 activeTab === 'records'
-                  ? 'bg-stone-900 text-white'
-                  : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50',
+                  ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                  : 'border-[color:var(--border-light)] bg-[color:var(--surface-elevated)] text-[color:var(--text-muted-dark)] hover:bg-[color:var(--status-expired-bg)]',
               )}
             >
               Daily Records
@@ -898,10 +917,10 @@ export default function AdminDashboard() {
 
       {activeTab === 'bookings' && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          <section className="border border-stone-200 bg-stone-50 p-6">
+          <section className="surface-card-muted p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-serif text-2xl text-stone-900">Pending Requests</h3>
-              <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+              <h3 className="section-heading text-2xl font-serif">Pending Requests</h3>
+              <span className="booking-status booking-status--expired">
                 {pendingBookings.length}
               </span>
             </div>
@@ -911,17 +930,15 @@ export default function AdminDashboard() {
                   <BookingCard booking={booking} />
                 </div>
               )) : (
-                <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
-                  No pending requests
-                </div>
+                <EmptyState label="No pending requests" />
               )}
             </div>
           </section>
 
-          <section className="border border-stone-200 bg-stone-50 p-6">
+          <section className="surface-card-muted p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-serif text-2xl text-stone-900">Active & Rescheduled</h3>
-              <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+              <h3 className="section-heading text-2xl font-serif">Active & Rescheduled</h3>
+              <span className="booking-status booking-status--expired">
                 {activeBookings.length}
               </span>
             </div>
@@ -931,17 +948,15 @@ export default function AdminDashboard() {
                   <BookingCard booking={booking} />
                 </div>
               )) : (
-                <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
-                  No active appointments
-                </div>
+                <EmptyState label="No active appointments" />
               )}
             </div>
           </section>
 
-          <section className="border border-stone-200 bg-stone-50 p-6">
+          <section className="surface-card-muted p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-serif text-2xl text-stone-900">Upcoming</h3>
-              <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+              <h3 className="section-heading text-2xl font-serif">Upcoming</h3>
+              <span className="booking-status booking-status--expired">
                 {upcomingBookings.length}
               </span>
             </div>
@@ -951,17 +966,15 @@ export default function AdminDashboard() {
                   <BookingCard booking={booking} />
                 </div>
               )) : (
-                <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
-                  No upcoming bookings
-                </div>
+                <EmptyState label="No upcoming bookings" />
               )}
             </div>
           </section>
 
-          <section className="border border-stone-200 bg-stone-50 p-6">
+          <section className="surface-card-muted p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-serif text-2xl text-stone-900">Expired & Past</h3>
-              <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+              <h3 className="section-heading text-2xl font-serif">Expired & Past</h3>
+              <span className="booking-status booking-status--expired">
                 {archivedBookings.length}
               </span>
             </div>
@@ -971,9 +984,7 @@ export default function AdminDashboard() {
                   <BookingCard booking={booking} />
                 </div>
               )) : (
-                <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
-                  No expired bookings
-                </div>
+                <EmptyState label="No expired bookings" />
               )}
             </div>
           </section>
@@ -982,18 +993,18 @@ export default function AdminDashboard() {
 
       {activeTab === 'slots' && (
         <div className="space-y-8">
-          <div className="border border-stone-200 bg-white p-6">
+          <div className="surface-card p-6">
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
               <div className="min-w-0 space-y-6">
                 <div>
-                  <h3 className="font-serif text-2xl text-stone-900 mb-2">Schedule Controls</h3>
-                  <p className="text-stone-600">
+                  <h3 className="section-heading mb-2 text-2xl font-serif">Schedule Controls</h3>
+                  <p className="text-[color:var(--text-muted-dark)]">
                     Press, hold, and drag anywhere on the strip to sweep-select time. Then mark the whole selection unavailable or reopen part of a yellow section back to available.
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Stylist</p>
+                  <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Stylist</p>
                   <div className="flex flex-wrap gap-3">
                     {stylists.map((stylist) => (
                       <button
@@ -1005,10 +1016,10 @@ export default function AdminDashboard() {
                           setFocusedSlotId('');
                         }}
                         className={clsx(
-                          'border px-5 py-3 text-sm uppercase tracking-[0.22em]',
+                          'editorial-btn rounded-[6px] border px-5 py-3 text-sm uppercase tracking-[0.22em]',
                           selectedStylist === stylist.id
-                            ? 'border-stone-900 bg-stone-900 text-white'
-                            : 'border-stone-200 bg-white text-stone-600 hover:border-stone-400',
+                            ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                            : 'border-[color:var(--border-light)] bg-[color:var(--surface-elevated)] text-[color:var(--text-muted-dark)] hover:bg-[color:var(--status-expired-bg)]',
                         )}
                       >
                         {stylist.name}
@@ -1018,7 +1029,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Date</p>
+                  <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Date</p>
                   <div className="max-w-full overflow-x-auto pb-2">
                     <div className="flex w-max gap-3 pr-2">
                       {dates.map((date) => (
@@ -1027,10 +1038,10 @@ export default function AdminDashboard() {
                           type="button"
                           onClick={() => setSelectedDate(date)}
                           className={clsx(
-                            'min-w-[78px] sm:min-w-[92px] border px-3 sm:px-4 py-4 text-center',
+                            'surface-card min-w-[78px] sm:min-w-[92px] px-3 sm:px-4 py-4 text-center',
                             format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                              ? 'border-stone-900 bg-stone-900 text-white'
-                              : 'border-stone-200 bg-white text-stone-900 hover:border-stone-400',
+                              ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                              : 'text-[color:var(--text-dark)]',
                           )}
                         >
                           <p className="text-xs uppercase tracking-[0.22em] mb-2">{format(date, 'EEE')}</p>
@@ -1042,24 +1053,24 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="h-fit w-full max-w-full border border-stone-200 bg-stone-50 p-5">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-4">Quick Actions</p>
+              <div className="surface-card-muted h-fit w-full max-w-full p-5">
+                <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Quick Actions</p>
                 <div className="space-y-4">
-                  <div className="border border-stone-200 bg-white p-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Sweep Selection</p>
-                    <p className="text-sm text-stone-700">
+                  <div className="surface-card p-4">
+                    <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--accent-gold)]">Sweep Selection</p>
+                    <p className="text-sm text-[color:var(--text-muted-dark)]">
                       Drag across any mix of green, yellow, red, or purple time to select that exact portion of the day.
                     </p>
                   </div>
-                  <div className="border border-stone-200 bg-white p-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Reopen Time</p>
-                    <p className="text-sm text-stone-700">
+                  <div className="surface-card p-4">
+                    <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--accent-gold)]">Reopen Time</p>
+                    <p className="text-sm text-[color:var(--text-muted-dark)]">
                       If part of the strip is already yellow, drag just that portion and use <span className="font-medium">Mark Available</span>.
                     </p>
                   </div>
-                  <div className="border border-stone-200 bg-white p-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Reschedule</p>
-                    <p className="text-sm text-stone-700">
+                  <div className="surface-card p-4">
+                    <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--accent-gold)]">Reschedule</p>
+                    <p className="text-sm text-[color:var(--text-muted-dark)]">
                       Drag a booking pill onto a green start point to propose a new time to the student.
                     </p>
                   </div>
@@ -1068,27 +1079,27 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="border border-stone-200 bg-white p-6">
+          <div className="surface-card p-6">
             <div className="mb-6 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
-                <h3 className="font-serif text-2xl text-stone-900">
+                <h3 className="section-heading text-2xl font-serif">
                   {selectedDayStylist?.name || 'Stylist'} on {format(selectedDate, 'MMM d, yyyy')}
                 </h3>
-                <p className="text-sm text-stone-500 mt-1">
+                <p className="mt-1 text-sm text-[color:var(--text-muted-dark)]">
                   Hover the strip to read the exact time, drag on the strip to select a full range, or drag a booking pill onto a green start point to propose a new time.
                 </p>
               </div>
               <div className="flex w-full flex-col items-start gap-3 lg:w-auto lg:items-end">
-                <div className="border border-stone-200 bg-stone-50 px-4 py-3 text-left lg:text-right">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Cursor time</p>
-                  <p className="font-serif text-2xl text-stone-900">{hoveredTime?.time ?? '—'}</p>
+                <div className="surface-card-muted px-4 py-3 text-left lg:text-right">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Cursor time</p>
+                  <p className="font-serif text-2xl text-[color:var(--text-dark)]">{hoveredTime?.time ?? '—'}</p>
                 </div>
                 <ScheduleLegend />
               </div>
             </div>
 
             {loadingSchedule ? (
-              <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
+              <div className="empty-state">
                 Loading timeline
               </div>
             ) : schedule ? (
@@ -1102,13 +1113,13 @@ export default function AdminDashboard() {
                           className="absolute top-0"
                           style={{ left: `${label.left + 8}px` }}
                         >
-                          <span className="text-[11px] uppercase tracking-[0.22em] text-stone-500">{label.time}</span>
+                              <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">{label.time}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
 
-                    <div
-                      className="relative overflow-visible rounded-[28px] border border-stone-200 bg-stone-50/80 px-2 py-2 shadow-inner"
+                        <div
+                      className="relative overflow-visible rounded-[28px] border border-[color:var(--border-light)] bg-[color:var(--surface-card-muted)] px-2 py-2 shadow-inner"
                       style={{ width: timelineWidth + 16, minHeight: 118 }}
                       onMouseMove={(event) => {
                         const nextHover = getHoverTimeFromClientX(event.clientX, event.currentTarget.getBoundingClientRect().left);
@@ -1129,13 +1140,13 @@ export default function AdminDashboard() {
                       {hoveredTime && (
                         <>
                           <div
-                            className="pointer-events-none absolute -top-10 z-30 -translate-x-1/2 border border-stone-900 bg-stone-900 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-white shadow-xl"
+                            className="timeline-tooltip pointer-events-none absolute -top-10 z-30 -translate-x-1/2 px-3 py-2 text-[11px] uppercase tracking-[0.22em] shadow-xl"
                             style={{ left: `${hoveredTime.left + 8}px` }}
                           >
                             {hoveredTime.time}
                           </div>
                           <div
-                            className="pointer-events-none absolute bottom-2 top-2 z-20 w-px bg-stone-900/35"
+                            className="timeline-cursor-line pointer-events-none absolute bottom-2 top-2 z-20 w-px"
                             style={{ left: `${hoveredTime.left + 8}px` }}
                           />
                         </>
@@ -1196,8 +1207,8 @@ export default function AdminDashboard() {
                               className={clsx(
                                 'relative h-[118px] border-r border-white/20 transition-all duration-150 first:rounded-l-[22px] last:rounded-r-[22px]',
                                 getTrackCellClasses(status, canDrop),
-                                focusedSlotId === slot.id && !focusedBookingId && 'ring-2 ring-stone-900/40 ring-inset',
-                                dropTargetSlotId === slot.id && 'ring-2 ring-green-700 ring-inset',
+                                focusedSlotId === slot.id && !focusedBookingId && 'ring-2 ring-[color:var(--accent-gold-border)] ring-inset',
+                                dropTargetSlotId === slot.id && 'ring-2 ring-[color:var(--accent-gold)] ring-inset',
                               )}
                               style={{ width: CELL_WIDTH }}
                             >
@@ -1235,10 +1246,10 @@ export default function AdminDashboard() {
                                 setFocusedSlotId('');
                               }}
                               className={clsx(
-                                'absolute z-10 overflow-hidden border px-3 text-left shadow-sm',
-                                getStatusClasses(range.displayStatus),
-                                canDrag && 'cursor-grab active:cursor-grabbing',
-                                focusedBookingId === booking.id && 'ring-2 ring-stone-900/30',
+                                  'absolute z-10 overflow-hidden border px-3 text-left shadow-sm',
+                                  getStatusClasses(range.displayStatus),
+                                  canDrag && 'cursor-grab active:cursor-grabbing',
+                                  focusedBookingId === booking.id && 'ring-2 ring-[color:var(--accent-gold-border)]',
                               )}
                               style={{
                                 left: `${getTimelineLeft(range.startTime) + 8}px`,
@@ -1258,7 +1269,7 @@ export default function AdminDashboard() {
 
                       {activeRange && (
                         <div
-                          className="pointer-events-none absolute bottom-2 top-2 z-20 rounded-[20px] border-2 border-stone-900/55 bg-stone-900/10 shadow-lg"
+                          className="timeline-range-overlay pointer-events-none absolute bottom-2 top-2 z-20 rounded-[20px] border-2 shadow-lg"
                           style={{
                             left: `${getTimelineLeft(activeRange.startTime) + 8}px`,
                             width: `${((timeToMinutes(activeRange.endTime) - timeToMinutes(activeRange.startTime)) / SLOT_INTERVAL_MINUTES) * CELL_WIDTH}px`,
@@ -1271,7 +1282,7 @@ export default function AdminDashboard() {
 
                 {dragRange && (
                   <div
-                    className="pointer-events-none fixed z-50 border border-stone-900 bg-stone-900 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-white shadow-2xl"
+                    className="timeline-tooltip pointer-events-none fixed z-50 px-3 py-2 text-[11px] uppercase tracking-[0.22em] shadow-2xl"
                     style={{ left: dragRange.cursorX + 14, top: dragRange.cursorY - 44 }}
                   >
                     {activeRange ? formatTimeRange(activeRange.startTime, activeRange.endTime) : 'Selecting range'}
@@ -1279,25 +1290,25 @@ export default function AdminDashboard() {
                 )}
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <div className="min-w-0 border border-stone-200 bg-stone-50 p-5">
+                  <div className="surface-card-muted min-w-0 p-5">
                     {focusedBooking ? (
                       <>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Focused booking</p>
+                        <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Focused booking</p>
                         <div className="flex flex-wrap items-center gap-3 mb-4">
-                          <span className="font-serif text-3xl text-stone-900">{focusedBooking.student?.name || 'Booking'}</span>
+                          <span className="font-serif text-3xl text-[color:var(--text-dark)]">{focusedBooking.student?.name || 'Booking'}</span>
                           <span className={clsx(
-                            'border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
+                            '',
                             focusedBooking.status === 'PENDING'
-                              ? 'border-green-300 bg-green-100 text-green-900'
+                              ? 'booking-status booking-status--requested'
                               : focusedBooking.status === 'NEEDS_RESCHEDULE' || focusedBooking.status === 'RESCHEDULE_PENDING' || focusedBooking.status === 'RESCHEDULE_PROPOSED'
-                                ? 'border-purple-300 bg-purple-100 text-purple-900'
-                                : 'border-stone-300 bg-white text-stone-700',
+                                ? 'booking-status booking-status--reschedule'
+                                : 'booking-status booking-status--confirmed',
                           )}
                           >
                             {getScheduleBookingStatusLabel(focusedBooking.status)}
                           </span>
                         </div>
-                        <div className="space-y-2 text-stone-700 mb-5">
+                        <div className="mb-5 space-y-2 text-[color:var(--text-muted-dark)]">
                           <p>{formatTimeRange(focusedBooking.start_time, focusedBooking.end_time)}</p>
                           <p>{focusedBooking.services?.map((service) => service.name).join(', ')}</p>
                           <p>{isSelectedDatePast ? 'Past-day bookings are read-only.' : 'Drag this block to a green start point to propose a new time.'}</p>
@@ -1307,7 +1318,7 @@ export default function AdminDashboard() {
                             <button
                               type="button"
                               onClick={() => handleStatusChange(focusedBooking.id, 'NEEDS_RESCHEDULE', 'Ask the student to choose a new time?')}
-                              className="border border-purple-300 px-4 py-3 text-xs uppercase tracking-[0.22em] text-purple-800 hover:bg-purple-50"
+                              className="editorial-btn editorial-btn-soft px-4 py-3"
                             >
                               Ask to Reschedule
                             </button>
@@ -1316,7 +1327,7 @@ export default function AdminDashboard() {
                             <button
                               type="button"
                               onClick={() => handleStatusChange(focusedBooking.id, 'CONFIRMED')}
-                              className="border border-green-700 bg-green-700 px-4 py-3 text-xs uppercase tracking-[0.22em] text-white hover:bg-green-800"
+                              className="editorial-btn editorial-btn-dark px-4 py-3"
                             >
                               Confirm Now
                             </button>
@@ -1325,11 +1336,11 @@ export default function AdminDashboard() {
                       </>
                     ) : focusedSlot ? (
                       <>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Focused segment</p>
+                        <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Focused segment</p>
                         <div className="flex flex-wrap items-center gap-3 mb-4">
-                          <span className="font-serif text-3xl text-stone-900">{focusedSlot.time}</span>
+                          <span className="font-serif text-3xl text-[color:var(--text-dark)]">{focusedSlot.time}</span>
                           <span className={clsx(
-                            'border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
+                            '',
                             getStatusClasses(getTimelineSlotStatus(focusedSlot)),
                           )}
                           >
@@ -1339,7 +1350,7 @@ export default function AdminDashboard() {
                             {getTimelineSlotStatus(focusedSlot) === 'RESCHEDULED' && 'Rescheduled'}
                           </span>
                         </div>
-                        <p className="text-stone-600 mb-5">
+                        <p className="mb-5 text-[color:var(--text-muted-dark)]">
                           Drag from this segment to sweep across a larger section of the day, or use the quick action below for this single 5-minute segment.
                         </p>
                         <div className="flex flex-wrap gap-3">
@@ -1352,7 +1363,7 @@ export default function AdminDashboard() {
                               });
                             }}
                             disabled={isSelectedDatePast}
-                            className="border border-yellow-400 bg-yellow-400 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-950 hover:bg-yellow-500"
+                            className="editorial-btn editorial-btn-soft px-4 py-3 disabled:opacity-45"
                           >
                             Select This Segment
                           </button>
@@ -1363,28 +1374,28 @@ export default function AdminDashboard() {
                               handleSingleSegmentStatus(focusedSlot, status);
                             }}
                             disabled={isSelectedDatePast}
-                            className="border border-stone-300 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-700 hover:bg-stone-100"
+                            className="editorial-btn editorial-btn-subtle px-4 py-3 disabled:opacity-45"
                           >
                             {getTimelineSlotStatus(focusedSlot) === 'UNAVAILABLE' ? 'Mark Available' : 'Mark Unavailable'}
                           </button>
                         </div>
                       </>
                     ) : (
-                      <p className="text-stone-500">Select a booking or time segment to see actions here.</p>
+                      <p className="text-[color:var(--text-secondary)]">Select a booking or time segment to see actions here.</p>
                     )}
                   </div>
 
-                  <div className="min-w-0 border border-stone-200 bg-white p-5">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Range actions</p>
+                  <div className="surface-card min-w-0 p-5">
+                    <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Range actions</p>
                     {activeRange ? (
                       <>
-                        <p className="font-serif text-2xl text-stone-900 mb-2">
+                        <p className="mb-2 font-serif text-2xl text-[color:var(--text-dark)]">
                           {formatTimeRange(activeRange.startTime, activeRange.endTime)}
                         </p>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">
+                        <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">
                           {activeRangeMinutes} minutes selected
                         </p>
-                        <p className="text-sm text-stone-600 mb-5">
+                        <p className="mb-5 text-sm text-[color:var(--text-muted-dark)]">
                           {isSelectedDatePast
                             ? 'Past-day timelines are read-only.'
                             : 'Use this swept selection to block multiple timeline segments at once or reopen just a portion of an unavailable section.'}
@@ -1394,7 +1405,7 @@ export default function AdminDashboard() {
                             type="button"
                             onClick={() => handleApplyRangeStatus('UNAVAILABLE')}
                             disabled={isSelectedDatePast}
-                            className="border border-yellow-500 bg-yellow-400 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-950 hover:bg-yellow-500"
+                            className="editorial-btn editorial-btn-soft px-4 py-3 disabled:opacity-45"
                           >
                             Mark Unavailable
                           </button>
@@ -1402,7 +1413,7 @@ export default function AdminDashboard() {
                             type="button"
                             onClick={() => handleApplyRangeStatus('AVAILABLE')}
                             disabled={isSelectedDatePast}
-                            className="border border-green-700 bg-green-700 px-4 py-3 text-xs uppercase tracking-[0.22em] text-white hover:bg-green-800"
+                            className="editorial-btn editorial-btn-dark px-4 py-3 disabled:opacity-45"
                           >
                             Mark Available
                           </button>
@@ -1412,14 +1423,14 @@ export default function AdminDashboard() {
                               setSelectedRange(null);
                               setDragRange(null);
                             }}
-                            className="border border-stone-300 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-700 hover:bg-stone-100"
+                            className="editorial-btn editorial-btn-subtle px-4 py-3"
                           >
                             Clear Selection
                           </button>
                         </div>
                       </>
                     ) : (
-                      <div className="space-y-3 text-sm text-stone-600">
+                      <div className="space-y-3 text-sm text-[color:var(--text-muted-dark)]">
                         <p>Press, hold, and drag anywhere on the strip to sweep-select a time range.</p>
                         <p>You can sweep across yellow time too, then mark just that portion available again.</p>
                         <p>Dragging a booking block to a green slot sends a reschedule proposal to the student.</p>
@@ -1429,9 +1440,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
-                Select a stylist to load the timeline
-              </div>
+              <EmptyState label="Select a stylist to load the timeline" />
             )}
           </div>
         </div>
@@ -1439,12 +1448,12 @@ export default function AdminDashboard() {
 
       {activeTab === 'records' && (
         <div className="space-y-8">
-          <div className="border border-stone-200 bg-white p-6">
+          <div className="surface-card p-6">
             <div className="flex min-w-0 flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Daily Booking Register</p>
-                <h3 className="font-serif text-2xl text-stone-900">Booking Record For One Day</h3>
-                <p className="text-sm text-stone-600 mt-1">
+                <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Daily Booking Register</p>
+                <h3 className="section-heading text-2xl font-serif">Booking Record For One Day</h3>
+                <p className="mt-1 text-sm text-[color:var(--text-muted-dark)]">
                   This view keeps the selected day’s bookings in one place. Past-day rows are informational only.
                 </p>
               </div>
@@ -1457,10 +1466,10 @@ export default function AdminDashboard() {
                       type="button"
                       onClick={() => setSelectedDate(date)}
                       className={clsx(
-                        'min-w-[78px] sm:min-w-[92px] border px-3 sm:px-4 py-4 text-center',
+                        'surface-card min-w-[78px] sm:min-w-[92px] px-3 sm:px-4 py-4 text-center',
                         format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                          ? 'border-stone-900 bg-stone-900 text-white'
-                          : 'border-stone-200 bg-white text-stone-900 hover:border-stone-400',
+                          ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                          : 'text-[color:var(--text-dark)]',
                       )}
                     >
                       <p className="text-xs uppercase tracking-[0.22em] mb-2">{format(date, 'EEE')}</p>
@@ -1473,80 +1482,73 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-            <div className="border border-stone-200 bg-white p-6 h-fit">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Day Summary</p>
+            <div className="surface-card p-6 h-fit">
+              <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Day Summary</p>
               <div className="space-y-5">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Date</p>
-                  <p className="font-serif text-2xl text-stone-900">{format(selectedDate, 'MMM d, yyyy')}</p>
+                  <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Date</p>
+                  <p className="font-serif text-2xl text-[color:var(--text-dark)]">{format(selectedDate, 'MMM d, yyyy')}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Bookings On Day</p>
-                  <p className="font-serif text-4xl text-stone-900">{dailyRecords.length}</p>
+                  <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Bookings On Day</p>
+                  <p className="font-serif text-4xl text-[color:var(--text-dark)]">{dailyRecords.length}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Window</p>
-                  <p className="text-sm text-stone-700">10:00 AM to 8:00 PM</p>
+                  <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Window</p>
+                  <p className="text-sm text-[color:var(--text-muted-dark)]">10:00 AM to 8:00 PM</p>
                 </div>
               </div>
             </div>
 
-            <div className="min-w-0 border border-stone-200 bg-white p-6">
+            <div className="surface-card min-w-0 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Day Register</p>
-                  <h4 className="font-serif text-2xl text-stone-900">Appointment Log</h4>
+                  <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Day Register</p>
+                  <h4 className="section-heading text-2xl font-serif">Appointment Log</h4>
                 </div>
-                <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+                <span className="booking-status booking-status--expired">
                   {format(selectedDate, 'EEE, MMM d')}
                 </span>
               </div>
 
               {loadingRecords ? (
-                <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.24em] text-stone-500">
-                  Loading booking records
-                </div>
+                <EmptyState label="Loading booking records" />
               ) : dailyRecords.length > 0 ? (
                 <div className="space-y-4">
                   {dailyRecords.map((booking) => {
                     const durationMinutes = getAdminBookingDuration(booking);
                     return (
-                      <div key={booking.id} className="border border-stone-200 bg-stone-50 p-5">
+                      <div key={booking.id} className={clsx('booking-card p-5', getBookingCardTone(booking))}>
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                           <div>
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Student</p>
-                            <h5 className="font-serif text-2xl text-stone-900">{booking.student.name}</h5>
-                            <p className="text-sm text-stone-600 mt-1">{booking.student.email}</p>
+                            <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Student</p>
+                            <h5 className="font-serif text-2xl text-[color:var(--text-dark)]">{booking.student.name}</h5>
+                            <p className="mt-1 text-sm text-[color:var(--text-muted-dark)]">{booking.student.email}</p>
                             {booking.student.phone_display ? (
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400 mt-2">{booking.student.phone_display}</p>
+                              <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">{booking.student.phone_display}</p>
                             ) : null}
                           </div>
-                          <div className={clsx('px-4 py-3 text-right border', booking.displayStatus === 'Requested'
-                            ? 'border-green-300 bg-green-100 text-green-900'
-                            : booking.displayStatus === 'Rescheduled' || booking.displayStatus === 'Reschedule Proposed' || booking.displayStatus === 'Asked to Reschedule'
-                              ? 'border-purple-300 bg-purple-100 text-purple-900'
-                              : booking.displayStatus === 'Expired' || booking.displayStatus === 'Cancelled' || booking.displayStatus === 'Rejected'
-                                ? 'border-stone-300 bg-stone-100 text-stone-700'
-                                : 'border-green-300 bg-green-100 text-green-900')}
-                          >
-                            <p className="text-[11px] uppercase tracking-[0.22em] mb-1">{booking.displayStatus}</p>
-                            <p className="font-serif text-2xl">
+                          <div className="text-right">
+                            <span className={clsx(getBookingCardStatus(booking))}>
+                              {booking.displayStatus}
+                            </span>
+                            <p className="mt-3 font-serif text-2xl text-[color:var(--text-dark)]">
                               {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, durationMinutes))}
                             </p>
                           </div>
                         </div>
 
-                        <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-stone-700">
+                        <div className="mt-5 grid grid-cols-1 gap-4 text-sm text-[color:var(--text-muted-dark)] md:grid-cols-3">
                           <div>
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Stylist</p>
+                            <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Stylist</p>
                             <p>{booking.stylist.name}</p>
                           </div>
                           <div>
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Services</p>
+                            <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Services</p>
                             <p>{booking.services.map((service) => service.name).join(', ')}</p>
                           </div>
                           <div>
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Duration</p>
+                            <p className="mb-1 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Duration</p>
                             <p>{durationMinutes} mins</p>
                           </div>
                         </div>
@@ -1555,9 +1557,7 @@ export default function AdminDashboard() {
                   })}
                 </div>
               ) : (
-                <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.24em] text-stone-500">
-                  No bookings recorded for this day
-                </div>
+                <EmptyState label="No bookings recorded for this day" />
               )}
             </div>
           </div>
@@ -1570,10 +1570,11 @@ export default function AdminDashboard() {
         disabled={undoStack.length === 0}
         aria-label="Undo latest admin action"
         title={undoStack.length > 0 ? 'Undo latest admin action' : 'No undo actions available'}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-stone-900 bg-stone-900 text-white shadow-[0_18px_45px_rgba(28,25,23,0.22)] transition hover:bg-stone-800 disabled:border-stone-300 disabled:bg-stone-300 disabled:text-stone-500 disabled:shadow-none"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--accent-gold-border)] bg-[color:var(--btn-dark-bg)] text-[color:var(--accent-gold)] shadow-[0_18px_45px_rgba(28,25,23,0.22)] transition hover:bg-[color:var(--bg-elevated)] disabled:border-[color:var(--border-light)] disabled:bg-[color:var(--status-expired-bg)] disabled:text-[color:var(--text-secondary)] disabled:shadow-none"
       >
         <Undo2 className="h-5 w-5" strokeWidth={2.2} />
       </button>
+      </div>
     </div>
   );
 }

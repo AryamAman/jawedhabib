@@ -50,23 +50,24 @@ export default function Signup() {
   }, []);
 
   return (
-    <div className="max-w-md mx-auto px-4 py-24">
+    <div className="page-shell section-light-alt min-h-[calc(100vh-8rem)]">
+      <div className="mx-auto max-w-md px-4 py-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 border border-stone-200 shadow-sm"
+        className="auth-card"
       >
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-serif text-stone-900 mb-4">Student Sign Up</h1>
-          <div className="w-8 h-[1px] bg-stone-900 mx-auto mb-6"></div>
-          <p className="text-sm uppercase tracking-[0.22em] text-stone-500 leading-6">
+          <h1 className="section-heading text-3xl font-serif mb-4">Student Sign Up</h1>
+          <div className="editorial-divider mb-6"></div>
+          <p className="auth-subtitle">
             Use your BITS Pilani Google account first. Right after verification, we&apos;ll ask for your phone number before your account is fully active.
           </p>
         </div>
 
         <button
           onClick={handleGoogleSignup}
-          className="w-full flex items-center justify-center gap-3 bg-stone-900 text-white py-4 text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors"
+          className="editorial-btn editorial-btn-dark w-full py-4"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -90,15 +91,16 @@ export default function Signup() {
           Verify BITS Google Account
         </button>
 
-        <div className="mt-8 text-center text-sm text-stone-500 space-y-2">
+        <div className="mt-8 space-y-2 text-center text-sm text-[color:var(--text-muted-dark)]">
           <div>
-            Already registered? <Link to="/login" className="text-stone-900 border-b border-stone-900 pb-1">Sign in here</Link>
+            Already registered? <Link to="/login" className="border-b border-[color:var(--accent-gold)] pb-1 text-[color:var(--text-dark)]">Sign in here</Link>
           </div>
-          <p className="text-xs uppercase tracking-[0.18em] text-stone-400">
+          <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">
             Only `@pilani.bits-pilani.ac.in` student email IDs are allowed.
           </p>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

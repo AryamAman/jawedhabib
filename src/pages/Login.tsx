@@ -57,23 +57,24 @@ export default function Login() {
   }, []);
 
   return (
-    <div className="max-w-md mx-auto px-4 py-32">
+    <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
+      <div className="mx-auto max-w-md px-4 py-32">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 border border-stone-200 shadow-sm"
+        className="auth-card"
       >
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-serif text-stone-900 mb-4">Student Login</h1>
-          <div className="w-8 h-[1px] bg-stone-900 mx-auto mb-6"></div>
-          <p className="text-sm uppercase tracking-[0.22em] text-stone-500 leading-6">
+          <h1 className="section-heading text-3xl font-serif mb-4">Student Login</h1>
+          <div className="editorial-divider mb-6"></div>
+          <p className="auth-subtitle">
             Existing students must sign in with the same Google account they used for registration.
           </p>
         </div>
 
         <button
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-3 bg-stone-900 text-white py-4 text-sm uppercase tracking-widest hover:bg-stone-800 transition-colors"
+          className="editorial-btn editorial-btn-dark w-full py-4"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -97,15 +98,16 @@ export default function Login() {
           Continue With Google
         </button>
 
-        <div className="mt-8 text-center text-sm text-stone-500 space-y-2">
+        <div className="mt-8 space-y-2 text-center text-sm text-[color:var(--text-muted-dark)]">
           <div>
-            New student? <Link to="/signup" className="text-stone-900 border-b border-stone-900 pb-1">Create your account first</Link>
+            New student? <Link to="/signup" className="border-b border-[color:var(--accent-gold)] pb-1 text-[color:var(--text-dark)]">Create your account first</Link>
           </div>
           <div>
-            <Link to="/admin/login" className="text-stone-500 hover:text-stone-900 transition-colors">Admin Login</Link>
+            <Link to="/admin/login" className="text-[color:var(--text-muted-dark)] hover:text-[color:var(--accent-gold)] transition-colors">Admin Login</Link>
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

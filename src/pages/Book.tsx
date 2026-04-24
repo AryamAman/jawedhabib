@@ -306,18 +306,18 @@ export default function Book() {
 
   const getTrackCellClasses = (status: DisplaySlotStatus, isSelectable: boolean) => {
     if (status === 'BOOKED') {
-      return 'bg-red-300/85';
+      return 'timeline-cell--booked';
     }
 
     if (status === 'UNAVAILABLE') {
-      return 'bg-yellow-300/85';
+      return 'timeline-cell--unavailable';
     }
 
     if (status === 'RESCHEDULED') {
-      return 'bg-purple-300/85';
+      return 'timeline-cell--rescheduled';
     }
 
-    return isSelectable || bookingDuration === 0 ? 'bg-green-300/85 hover:bg-green-400/85' : 'bg-green-200/45';
+    return isSelectable || bookingDuration === 0 ? 'timeline-cell--available timeline-cell--interactive' : 'timeline-cell--available-muted';
   };
 
   const handleSelectSlot = (slot: ScheduleSlot) => {
@@ -340,16 +340,18 @@ export default function Book() {
     : [];
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+    <div className="page-shell section-light-alt min-h-[calc(100vh-8rem)]">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-16"
       >
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-6">
+        <h1 className="section-heading text-4xl md:text-5xl font-serif mb-6">
           {isRescheduling ? 'Reschedule Appointment' : 'Book Appointment'}
         </h1>
-        <p className="max-w-2xl mx-auto text-sm uppercase tracking-[0.28em] text-stone-500">
+        <div className="editorial-divider mb-6"></div>
+        <p className="mx-auto max-w-2xl text-sm uppercase tracking-[0.28em] text-[color:var(--text-secondary)]">
           Flexible day timeline with shared booking colors for students and admins
         </p>
       </motion.div>
@@ -358,8 +360,8 @@ export default function Book() {
         <div className="min-w-0 space-y-10">
           <section>
             <div className="flex justify-between items-end mb-6">
-              <h2 className="text-sm uppercase tracking-[0.28em] text-stone-500">1. Select Services</h2>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-stone-400">Drag-ready timeline unlocks after this</p>
+              <h2 className="section-kicker text-sm">1. Select Services</h2>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Drag-ready timeline unlocks after this</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {services.map((service) => {
@@ -377,10 +379,10 @@ export default function Book() {
                       }
                     }}
                     className={clsx(
-                      'border p-6 text-left transition-all duration-200 min-h-[148px] flex flex-col justify-between',
+                      'surface-card surface-card-hover p-6 text-left transition-all duration-200 min-h-[148px] flex flex-col justify-between',
                       isSelected
-                        ? 'border-stone-900 bg-stone-900 text-white shadow-lg'
-                        : 'border-stone-200 bg-white text-stone-900 hover:border-stone-400 hover:shadow-md',
+                        ? 'border-[color:var(--accent-gold)] bg-[color:var(--bg-base)] text-[color:var(--text-primary)] shadow-lg'
+                        : 'text-[color:var(--text-dark)]',
                     )}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -388,7 +390,7 @@ export default function Book() {
                         <h3 className="font-serif text-2xl mb-2">{service.name}</h3>
                         <p className={clsx(
                           'text-xs uppercase tracking-[0.24em]',
-                          isSelected ? 'text-stone-300' : 'text-stone-500',
+                          isSelected ? 'text-[color:var(--text-secondary)]' : 'text-[color:var(--accent-gold)]',
                         )}
                         >
                           {service.duration_minutes} minutes
@@ -396,15 +398,15 @@ export default function Book() {
                       </div>
                       <span className={clsx(
                         'inline-flex h-8 min-w-8 items-center justify-center border px-2 text-[11px] uppercase tracking-[0.22em]',
-                        isSelected ? 'border-stone-300 text-stone-100' : 'border-stone-300 text-stone-600',
+                        isSelected ? 'border-[color:var(--accent-gold-border)] text-[color:var(--text-primary)]' : 'border-[color:var(--border-light)] text-[color:var(--text-muted-dark)]',
                       )}
                       >
                         ₹{service.price}
                       </span>
                     </div>
                     <span className={clsx(
-                      'inline-flex w-fit border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
-                      isSelected ? 'border-stone-300 text-stone-100' : 'border-stone-200 text-stone-500',
+                      'inline-flex w-fit rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
+                      isSelected ? 'border-[color:var(--accent-gold-border)] text-[color:var(--text-primary)]' : 'border-[color:var(--border-light)] text-[color:var(--text-secondary)]',
                     )}
                     >
                       {isSelected ? 'Included' : 'Tap to add'}
@@ -416,7 +418,7 @@ export default function Book() {
           </section>
 
           <section>
-            <h2 className="text-sm uppercase tracking-[0.28em] text-stone-500 mb-6">2. Select Stylist</h2>
+            <h2 className="section-kicker mb-6 text-sm">2. Select Stylist</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {stylists.map((stylist) => (
                 <button
@@ -428,16 +430,16 @@ export default function Book() {
                     setFocusedSlotId('');
                   }}
                   className={clsx(
-                    'border p-6 text-left transition-all duration-200',
+                    'surface-card surface-card-hover p-6 text-left transition-all duration-200',
                     selectedStylist === stylist.id
-                      ? 'border-stone-900 bg-stone-900 text-white shadow-lg'
-                      : 'border-stone-200 bg-white text-stone-900 hover:border-stone-400',
+                      ? 'border-[color:var(--accent-gold)] bg-[color:var(--bg-base)] text-[color:var(--text-primary)] shadow-lg'
+                      : 'text-[color:var(--text-dark)]',
                   )}
                 >
                   <h3 className="font-serif text-2xl mb-2">{stylist.name}</h3>
                   <p className={clsx(
                     'text-xs uppercase tracking-[0.24em]',
-                    selectedStylist === stylist.id ? 'text-stone-300' : 'text-stone-500',
+                    selectedStylist === stylist.id ? 'text-[color:var(--text-secondary)]' : 'text-[color:var(--accent-gold)]',
                   )}
                   >
                     {stylist.role}
@@ -451,15 +453,15 @@ export default function Book() {
             <section className="space-y-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <h2 className="text-sm uppercase tracking-[0.28em] text-stone-500 mb-3">3. Select Day & Time</h2>
-                  <p className="text-stone-600 max-w-2xl">
+                  <h2 className="section-kicker mb-3 text-sm">3. Select Day & Time</h2>
+                  <p className="max-w-2xl text-[color:var(--text-muted-dark)]">
                     Tap a segment to inspect it. Once you select services, the green start points stay valid for the full appointment length.
                     {selectedSlotData ? ' You can drag the selected booking bar to another green start time.' : ''}
                   </p>
                 </div>
-                <div className="border border-stone-200 bg-white px-4 py-3 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Current service time</p>
-                  <p className="font-serif text-2xl text-stone-900">{bookingDuration || '—'} {bookingDuration ? 'mins' : ''}</p>
+                <div className="surface-card px-4 py-3 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Current service time</p>
+                  <p className="font-serif text-2xl text-[color:var(--text-dark)]">{bookingDuration || '—'} {bookingDuration ? 'mins' : ''}</p>
                 </div>
               </div>
 
@@ -474,10 +476,10 @@ export default function Book() {
                         setSelectedSlot('');
                       }}
                       className={clsx(
-                        'flex-shrink-0 min-w-[78px] sm:min-w-[92px] border px-3 sm:px-4 py-4 text-center snap-start transition-all duration-200',
+                        'flex-shrink-0 min-w-[78px] sm:min-w-[92px] surface-card px-3 sm:px-4 py-4 text-center snap-start transition-all duration-200',
                         format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                          ? 'border-stone-900 bg-stone-900 text-white'
-                          : 'border-stone-200 bg-white text-stone-900 hover:border-stone-400',
+                          ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                          : 'text-[color:var(--text-dark)]',
                       )}
                     >
                       <p className="text-xs uppercase tracking-[0.24em] mb-2">{format(date, 'EEE')}</p>
@@ -487,25 +489,25 @@ export default function Book() {
                 </div>
               </div>
 
-              <div className="border border-stone-200 bg-white p-6">
+              <div className="surface-card p-6">
                 <div className="mb-6 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
-                    <h3 className="font-serif text-2xl text-stone-900">Day Timeline</h3>
-                    <p className="text-sm text-stone-500 mt-1">
+                    <h3 className="section-heading text-2xl font-serif">Day Timeline</h3>
+                    <p className="mt-1 text-sm text-[color:var(--text-muted-dark)]">
                       Click any green point to book it. Hover anywhere on the strip to read the exact time.
                     </p>
                   </div>
                   <div className="flex w-full flex-col items-start gap-3 lg:w-auto lg:items-end">
-                    <div className="border border-stone-200 bg-stone-50 px-4 py-3 text-left lg:text-right">
-                      <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Cursor time</p>
-                      <p className="font-serif text-2xl text-stone-900">{hoveredTime?.time ?? '—'}</p>
+                    <div className="surface-card-muted px-4 py-3 text-left lg:text-right">
+                      <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Cursor time</p>
+                      <p className="font-serif text-2xl text-[color:var(--text-dark)]">{hoveredTime?.time ?? '—'}</p>
                     </div>
                     <ScheduleLegend />
                   </div>
                 </div>
 
                 {loadingSchedule ? (
-                  <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
+                  <div className="empty-state">
                     Loading timeline
                   </div>
                 ) : schedule ? (
@@ -519,13 +521,13 @@ export default function Book() {
                               className="absolute top-0"
                               style={{ left: `${label.left + 8}px` }}
                             >
-                              <span className="text-[11px] uppercase tracking-[0.22em] text-stone-500">{label.time}</span>
+                              <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">{label.time}</span>
                             </div>
                           ))}
                         </div>
 
                         <div
-                          className="relative overflow-visible rounded-[28px] border border-stone-200 bg-stone-50/80 px-2 py-2 shadow-inner"
+                          className="relative overflow-visible rounded-[28px] border border-[color:var(--border-light)] bg-[color:var(--surface-card-muted)] px-2 py-2 shadow-inner"
                           style={{ width: timelineWidth + 16, minHeight: 118 }}
                           onMouseMove={(event) => {
                             const nextHover = getHoverTimeFromClientX(event.clientX, event.currentTarget.getBoundingClientRect().left);
@@ -538,13 +540,13 @@ export default function Book() {
                           {hoveredTime && (
                             <>
                               <div
-                                className="pointer-events-none absolute -top-10 z-30 -translate-x-1/2 border border-stone-900 bg-stone-900 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-white shadow-xl"
+                                className="timeline-tooltip pointer-events-none absolute -top-10 z-30 -translate-x-1/2 px-3 py-2 text-[11px] uppercase tracking-[0.22em] shadow-xl"
                                 style={{ left: `${hoveredTime.left + 8}px` }}
                               >
                                 {hoveredTime.time}
                               </div>
                               <div
-                                className="pointer-events-none absolute bottom-2 top-2 z-20 w-px bg-stone-900/35"
+                                className="timeline-cursor-line pointer-events-none absolute bottom-2 top-2 z-20 w-px"
                                 style={{ left: `${hoveredTime.left + 8}px` }}
                               />
                             </>
@@ -580,8 +582,8 @@ export default function Book() {
                                   className={clsx(
                                     'relative h-[118px] transition-all duration-150 first:rounded-l-[22px] last:rounded-r-[22px] border-r border-white/20',
                                     getTrackCellClasses(status, isSelectable),
-                                    isSelected && 'ring-2 ring-green-700 ring-inset',
-                                    isFocused && !isSelected && 'ring-2 ring-stone-900/30 ring-inset',
+                                    isSelected && 'ring-2 ring-[color:var(--accent-gold)] ring-inset',
+                                    isFocused && !isSelected && 'ring-2 ring-[color:var(--accent-gold-border)] ring-inset',
                                     !isSelectable && bookingDuration > 0 && status === 'AVAILABLE' && 'opacity-60',
                                   )}
                                   style={{ width: CELL_WIDTH }}
@@ -603,7 +605,7 @@ export default function Book() {
                                     setFocusedSlotId(focusTarget.id);
                                   }
                                 }}
-                                className={clsx(
+                              className={clsx(
                                   'absolute z-10 overflow-hidden border px-3 text-left shadow-sm',
                                   getStatusClasses(range.displayStatus),
                                 )}
@@ -628,7 +630,7 @@ export default function Book() {
                               draggable
                               onDragStart={() => setDraggingSelection(true)}
                               onDragEnd={() => setDraggingSelection(false)}
-                              className="absolute z-20 border border-green-800 bg-green-700 px-3 text-left text-white shadow-lg"
+                              className="timeline-selection-pill absolute z-20 px-3 text-left shadow-lg"
                               style={{
                                 left: `${getTimelineLeft(selectedSlotData.time) + 8}px`,
                                 top: SELECTION_BLOCK_TOP,
@@ -644,14 +646,14 @@ export default function Book() {
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-                      <div className="min-w-0 border border-stone-200 bg-stone-50 p-5">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Focused timeline segment</p>
+                      <div className="surface-card-muted min-w-0 p-5">
+                        <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Focused timeline segment</p>
                         {focusedSlot ? (
                           <>
                             <div className="flex flex-wrap items-center gap-3 mb-4">
-                              <span className="font-serif text-3xl text-stone-900">{focusedSlot.time}</span>
+                              <span className="font-serif text-3xl text-[color:var(--text-dark)]">{focusedSlot.time}</span>
                               <span className={clsx(
-                                'border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
+                                '',
                                 getStatusClasses(getStudentSlotStatus(focusedSlot)),
                               )}
                               >
@@ -661,7 +663,7 @@ export default function Book() {
                                 {getStudentSlotStatus(focusedSlot) === 'RESCHEDULED' && 'Rescheduled'}
                               </span>
                             </div>
-                            <p className="text-stone-600 mb-5">
+                            <p className="mb-5 text-[color:var(--text-muted-dark)]">
                               {bookingDuration <= 0
                                 ? 'Choose at least one service to unlock start times on the timeline.'
                                 : selectableStartTimes.has(focusedSlot.time)
@@ -673,7 +675,7 @@ export default function Book() {
                                 type="button"
                                 onClick={() => handleSelectSlot(focusedSlot)}
                                 disabled={bookingDuration <= 0 || !selectableStartTimes.has(focusedSlot.time)}
-                                className="border border-green-700 bg-green-700 px-4 py-3 text-xs uppercase tracking-[0.22em] text-white transition-colors hover:bg-green-800 disabled:border-stone-300 disabled:bg-stone-200 disabled:text-stone-500"
+                                className="editorial-btn editorial-btn-dark px-4 py-3 disabled:opacity-45"
                               >
                                 {selectedSlot === focusedSlot.id ? 'Selected' : 'Use this time'}
                               </button>
@@ -681,7 +683,7 @@ export default function Book() {
                                 <button
                                   type="button"
                                   onClick={() => setSelectedSlot('')}
-                                  className="border border-stone-300 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-600 hover:bg-stone-100"
+                                  className="editorial-btn editorial-btn-subtle px-4 py-3"
                                 >
                                   Clear selection
                                 </button>
@@ -689,22 +691,22 @@ export default function Book() {
                             </div>
                           </>
                         ) : (
-                          <p className="text-stone-500">Tap any point on the timeline to inspect it.</p>
+                          <p className="text-[color:var(--text-secondary)]">Tap any point on the timeline to inspect it.</p>
                         )}
                       </div>
 
-                      <div className="min-w-0 border border-stone-200 bg-white p-5">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-3">Timeline tips</p>
-                        <div className="space-y-3 text-sm text-stone-600">
+                      <div className="surface-card min-w-0 p-5">
+                        <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Timeline tips</p>
+                        <div className="space-y-3 text-sm text-[color:var(--text-muted-dark)]">
                           <p>Green starts are safe for the full appointment length you selected.</p>
                           <p>Drag the selected green bar to another green start time to reschedule quickly.</p>
-                          <p>Yellow means unavailable, red is already booked, and purple marks rescheduled time.</p>
+                          <p>Muted sage is available, mocha is booked, pale warm grey is unavailable, and warm amber marks rescheduled time.</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
+                  <div className="empty-state">
                     Pick a stylist to load the day timeline
                   </div>
                 )}
@@ -714,13 +716,13 @@ export default function Book() {
         </div>
 
         <aside className="min-w-0 lg:h-fit lg:self-start lg:sticky lg:top-24 lg:z-30">
-          <div className="border border-stone-200 bg-white p-8 shadow-sm lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <h2 className="text-2xl font-serif text-stone-900 mb-8">Booking Summary</h2>
+          <div className="surface-card p-8 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+            <h2 className="section-heading mb-8 text-2xl font-serif">Booking Summary</h2>
 
             <div className="space-y-6 mb-10">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Services</p>
-                <p className="font-serif text-xl text-stone-900">
+                <p className="section-kicker mb-2 text-[11px]">Services</p>
+                <p className="font-serif text-xl text-[color:var(--text-dark)]">
                   {selectedServices.length > 0
                     ? selectedServices.map((id) => services.find((service) => service.id === id)?.name).join(', ')
                     : '—'}
@@ -728,35 +730,35 @@ export default function Book() {
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Stylist</p>
-                <p className="font-serif text-xl text-stone-900">
+                <p className="section-kicker mb-2 text-[11px]">Stylist</p>
+                <p className="font-serif text-xl text-[color:var(--text-dark)]">
                   {selectedStylist ? stylists.find((stylist) => stylist.id === selectedStylist)?.name : '—'}
                 </p>
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Date</p>
-                <p className="font-serif text-xl text-stone-900">
+                <p className="section-kicker mb-2 text-[11px]">Date</p>
+                <p className="font-serif text-xl text-[color:var(--text-dark)]">
                   {selectedStylist ? format(selectedDate, 'MMM d, yyyy') : '—'}
                 </p>
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Time Range</p>
-                <p className="font-serif text-xl text-stone-900">
+                <p className="section-kicker mb-2 text-[11px]">Time Range</p>
+                <p className="font-serif text-xl text-[color:var(--text-dark)]">
                   {selectedSlotData && bookingDuration > 0 ? selectedRangeLabel : '—'}
                 </p>
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Total Duration</p>
-                <p className="font-serif text-xl text-stone-900">{bookingDuration ? `${bookingDuration} mins` : '—'}</p>
+                <p className="section-kicker mb-2 text-[11px]">Total Duration</p>
+                <p className="font-serif text-xl text-[color:var(--text-dark)]">{bookingDuration ? `${bookingDuration} mins` : '—'}</p>
               </div>
 
-              <div className="pt-6 border-t border-stone-200">
+              <div className="border-t border-[color:var(--border-light)] pt-6">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Total</p>
-                  <p className="font-serif text-3xl text-stone-900">
+                  <p className="section-kicker text-[11px]">Total</p>
+                  <p className="font-serif text-3xl text-[color:var(--text-dark)]">
                     ₹{selectedServices.reduce((total, id) => {
                       const service = services.find((candidate) => candidate.id === id);
                       return total + (service?.price ?? 0);
@@ -767,9 +769,9 @@ export default function Book() {
             </div>
 
             {isRescheduling && rescheduleState?.oldDate && rescheduleState?.oldTime && (
-              <div className="border border-purple-300 bg-purple-50 p-4 mb-6">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-purple-700 mb-2">Current booking</p>
-                <p className="text-sm text-purple-900">
+              <div className="mb-6 rounded-[var(--radius-md)] border border-[color:var(--status-reschedule-border)] bg-[color:var(--status-reschedule-bg)] p-4">
+                <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--status-reschedule-text)]">Current booking</p>
+                <p className="text-sm text-[color:var(--text-dark)]">
                   {format(new Date(`${rescheduleState.oldDate}T00:00:00`), 'MMM d, yyyy')} at {rescheduleState.oldTime}
                 </p>
               </div>
@@ -779,12 +781,13 @@ export default function Book() {
               type="button"
               onClick={handleBook}
               disabled={selectedServices.length === 0 || !selectedStylist || !selectedSlot}
-              className="w-full border border-stone-900 bg-stone-900 py-4 text-sm uppercase tracking-[0.24em] text-white transition-colors hover:bg-stone-800 disabled:border-stone-300 disabled:bg-stone-300 disabled:text-stone-500"
+              className="editorial-btn editorial-btn-dark w-full py-4 disabled:opacity-45"
             >
               {isRescheduling ? 'Confirm Reschedule' : 'Request Booking'}
             </button>
           </div>
         </aside>
+      </div>
       </div>
     </div>
   );

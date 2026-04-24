@@ -53,22 +53,23 @@ export default function AdminLogin() {
   }, []);
 
   return (
-    <div className="max-w-md mx-auto px-4 py-32">
+    <div className="page-shell section-light-alt min-h-[calc(100vh-8rem)]">
+      <div className="mx-auto max-w-md px-4 py-32">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 border border-stone-200 shadow-sm"
+        className="auth-card"
       >
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-serif text-stone-900 mb-4">Admin Access</h1>
-          <div className="w-8 h-[1px] bg-stone-900 mx-auto"></div>
-          <p className="mt-4 text-sm uppercase tracking-widest text-stone-500">Sign in to manage salon</p>
+          <h1 className="section-heading text-3xl font-serif mb-4">Admin Access</h1>
+          <div className="editorial-divider"></div>
+          <p className="auth-subtitle mt-4">Sign in to manage salon</p>
         </div>
 
         <div className="mt-6">
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-stone-300 text-stone-700 py-4 text-sm font-medium hover:bg-stone-50 transition-colors"
+            className="editorial-btn editorial-btn-subtle w-full py-4"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -93,12 +94,13 @@ export default function AdminLogin() {
           </button>
         </div>
 
-        <div className="mt-8 text-center text-sm text-stone-500 space-y-2">
+        <div className="mt-8 space-y-2 text-center text-sm text-[color:var(--text-muted-dark)]">
           <div>
-            <Link to="/login" className="text-stone-500 hover:text-stone-900 transition-colors">Return to Student Login</Link>
+            <Link to="/login" className="text-[color:var(--text-muted-dark)] hover:text-[color:var(--accent-gold)] transition-colors">Return to Student Login</Link>
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

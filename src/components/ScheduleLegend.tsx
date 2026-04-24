@@ -17,7 +17,7 @@ export default function ScheduleLegend() {
         <div
           key={status}
           className={clsx(
-            'inline-flex items-center gap-2 border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
+            'inline-flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
             getStatusClasses(status),
           )}
         >

@@ -279,14 +279,14 @@ export function getSelectableStartTimes(options: {
 export function getStatusClasses(status: DisplaySlotStatus): string {
   switch (status) {
     case 'AVAILABLE':
-      return 'bg-green-100 text-green-900 border-green-300';
+      return 'timeline-status timeline-status--available';
     case 'BOOKED':
-      return 'bg-red-100 text-red-900 border-red-300';
+      return 'timeline-status timeline-status--booked';
     case 'UNAVAILABLE':
-      return 'bg-yellow-100 text-yellow-900 border-yellow-300';
+      return 'timeline-status timeline-status--unavailable';
     case 'RESCHEDULED':
-      return 'bg-purple-100 text-purple-900 border-purple-300';
+      return 'timeline-status timeline-status--rescheduled';
     default:
-      return 'bg-stone-100 text-stone-800 border-stone-300';
+      return 'timeline-status timeline-status--unavailable';
   }
 }

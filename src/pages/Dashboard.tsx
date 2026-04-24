@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
 import { addMinutes, formatTimeRange } from '../lib/scheduling';
+import EmptyState from '../components/EmptyState';
 
 type BookingDisplayStatus =
   | 'Requested'
@@ -52,18 +53,54 @@ const compareBookings = (first: Booking, second: Booking) => {
 
 const getStatusClasses = (booking: Booking) => {
   if (booking.displayStatus === 'Confirmed') {
-    return 'bg-stone-900 text-white';
+    return 'booking-status booking-status--confirmed';
   }
 
   if (booking.displayStatus === 'Requested') {
-    return 'bg-green-100 text-green-900 border border-green-300';
+    return 'booking-status booking-status--requested';
   }
 
-  if (booking.displayStatus === 'Cancelled' || booking.displayStatus === 'Rejected' || booking.displayStatus === 'Expired') {
-    return 'bg-stone-100 text-stone-700 border border-stone-300';
+  if (booking.displayStatus === 'Cancelled') {
+    return 'booking-status booking-status--cancelled';
   }
 
-  return 'bg-purple-100 text-purple-900 border border-purple-300';
+  if (booking.displayStatus === 'Rejected') {
+    return 'booking-status booking-status--rejected';
+  }
+
+  if (booking.displayStatus === 'Expired') {
+    return 'booking-status booking-status--expired';
+  }
+
+  return 'booking-status booking-status--reschedule';
+};
+
+const getBookingCardTone = (booking: Booking) => {
+  if (booking.displayStatus === 'Cancelled') {
+    return 'booking-card--cancelled';
+  }
+
+  if (booking.displayStatus === 'Rejected') {
+    return 'booking-card--rejected';
+  }
+
+  if (booking.displayStatus === 'Expired') {
+    return 'booking-card--expired';
+  }
+
+  if (booking.displayStatus === 'Asked to Reschedule' || booking.displayStatus === 'Reschedule Proposed' || booking.displayStatus === 'Rescheduled') {
+    return 'booking-card--rescheduled';
+  }
+
+  if (booking.displayStatus === 'Requested') {
+    return 'booking-card--requested';
+  }
+
+  if (booking.displayStatus === 'Confirmed') {
+    return 'booking-card--confirmed';
+  }
+
+  return 'booking-card--default';
 };
 
 export default function Dashboard() {
@@ -166,27 +203,28 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+    <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-16"
       >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12 p-8 bg-white border border-stone-200 shadow-sm">
+        <div className="surface-card editorial-border-left mb-12 flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-stone-900 text-white flex items-center justify-center text-2xl font-serif flex-shrink-0">
+            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--btn-dark-bg)] text-2xl font-serif text-[color:var(--status-confirmed-text)]">
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-3xl font-serif text-stone-900">{user.name}</h1>
-              <p className="text-sm uppercase tracking-widest text-stone-500 mt-1">{user.email}</p>
-              <p className="text-xs uppercase tracking-[0.22em] text-stone-400 mt-2">{user.phone}</p>
-              <span className="inline-block mt-2 text-xs uppercase tracking-widest px-3 py-1 bg-stone-100 text-stone-600">Student</span>
+              <h1 className="section-heading text-3xl font-serif">{user.name}</h1>
+              <p className="mt-1 text-sm uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">{user.email}</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">{user.phone}</p>
+              <span className="booking-status booking-status--requested mt-2 inline-flex">Student</span>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="self-start md:self-center px-6 py-3 text-sm uppercase tracking-widest border border-stone-300 text-stone-600 hover:bg-stone-50 hover:border-stone-900 transition-colors"
+            className="editorial-btn editorial-btn-subtle self-start md:self-center"
           >
             Sign Out
           </button>
@@ -195,43 +233,43 @@ export default function Dashboard() {
 
       <div className="space-y-16">
         <section>
-          <h2 className="text-2xl font-serif text-stone-900 mb-8 pb-4 border-b border-stone-200">Active Appointments</h2>
+          <h2 className="section-heading mb-8 border-b border-[color:var(--border-light)] pb-4 text-2xl font-serif">Active Appointments</h2>
           {activeBookings.length === 0 ? (
-            <p className="text-stone-500 text-sm uppercase tracking-widest">No active appointments.</p>
+            <EmptyState label="No active appointments" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {activeBookings.map((booking) => (
                 <div
                   key={booking.id}
                   className={clsx(
-                    'border p-6 shadow-sm',
-                    booking.displayStatus === 'Reschedule Proposed' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-stone-200',
+                    'booking-card p-6',
+                    getBookingCardTone(booking),
                   )}
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <h3 className="font-serif text-xl mb-1">{booking.services.map((service) => service.name).join(', ')}</h3>
-                      <p className="text-xs uppercase tracking-widest text-stone-500">with {booking.stylist.name}</p>
+                      <h3 className="font-serif text-xl mb-1 text-[color:var(--text-dark)]">{booking.services.map((service) => service.name).join(', ')}</h3>
+                      <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">with {booking.stylist.name}</p>
                     </div>
-                    <span className={clsx('text-xs uppercase tracking-widest px-3 py-1', getStatusClasses(booking))}>
+                    <span className={clsx(getStatusClasses(booking))}>
                       {booking.displayStatus}
                     </span>
                   </div>
 
                   {booking.displayStatus === 'Reschedule Proposed' && booking.proposed_slot ? (
-                    <div className="mb-8 bg-purple-50 p-4 border border-purple-200 rounded-sm">
-                      <p className="text-sm text-purple-800 mb-4">
+                    <div className="mb-8 rounded-[var(--radius-md)] border border-[color:var(--status-reschedule-border)] bg-[color:var(--status-reschedule-bg)] p-4">
+                      <p className="mb-4 text-sm text-[color:var(--status-reschedule-text)]">
                         The salon has proposed a new time for your appointment:
                       </p>
                       <div className="flex justify-between text-sm mb-2 gap-4">
-                        <span className="text-stone-500 uppercase tracking-widest">Original</span>
-                        <span className="line-through text-stone-400 text-right">
+                        <span className="text-[color:var(--text-secondary)] uppercase tracking-[0.18em]">Original</span>
+                        <span className="line-through text-right text-[color:var(--text-secondary)]">
                           {format(parseISO(booking.slot.date), 'MMM d')} • {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, getBookingDuration(booking)))}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm font-medium gap-4">
-                        <span className="text-purple-800 uppercase tracking-widest">New Time</span>
-                        <span className="text-purple-900 text-right">
+                        <span className="uppercase tracking-[0.18em] text-[color:var(--status-reschedule-text)]">New Time</span>
+                        <span className="text-right text-[color:var(--text-dark)]">
                           {format(parseISO(booking.proposed_slot.date), 'MMM d, yyyy')} • {formatTimeRange(
                             booking.proposed_slot.time,
                             addMinutes(booking.proposed_slot.time, getBookingDuration(booking)),
@@ -243,13 +281,13 @@ export default function Dashboard() {
                         <div className="flex gap-2 mt-6">
                           <button
                             onClick={() => handleRescheduleResponse(booking.id, true)}
-                            className="flex-1 bg-purple-700 text-white py-2 text-xs uppercase tracking-widest hover:bg-purple-800"
+                            className="editorial-btn editorial-btn-dark flex-1 py-3"
                           >
                             Accept New Time
                           </button>
                           <button
                             onClick={() => handleRescheduleResponse(booking.id, false)}
-                            className="flex-1 bg-white border border-purple-600 text-purple-800 py-2 text-xs uppercase tracking-widest hover:bg-purple-50"
+                            className="editorial-btn editorial-btn-soft flex-1 py-3"
                           >
                             Keep Original
                           </button>
@@ -257,8 +295,8 @@ export default function Dashboard() {
                       ) : null}
                     </div>
                   ) : booking.displayStatus === 'Asked to Reschedule' ? (
-                    <div className="mb-8 bg-purple-50 p-4 border border-purple-200 rounded-sm">
-                      <p className="text-sm text-purple-900 mb-4 font-medium">
+                    <div className="mb-8 rounded-[var(--radius-md)] border border-[color:var(--status-reschedule-border)] bg-[color:var(--status-reschedule-bg)] p-4">
+                      <p className="mb-4 text-sm font-medium text-[color:var(--text-dark)]">
                         Your appointment has been asked to reschedule. Pick a new time or cancel the booking.
                       </p>
                       <div className="space-y-2">
@@ -273,14 +311,14 @@ export default function Dashboard() {
                               oldTime: booking.slot.time,
                             },
                           })}
-                          className="w-full bg-purple-600 text-white py-3 text-xs uppercase tracking-widest hover:bg-purple-700 transition-colors"
+                          className="editorial-btn editorial-btn-dark w-full py-3"
                         >
                           Accept Rescheduling
                         </button>
                         {booking.canCancel ? (
                           <button
                             onClick={() => handleCancel(booking.id)}
-                            className="w-full border border-purple-300 text-purple-900 py-3 text-xs uppercase tracking-widest hover:bg-purple-100 transition-colors"
+                            className="editorial-btn editorial-btn-soft w-full py-3"
                           >
                             Cancel Booking
                           </button>
@@ -290,22 +328,22 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-4 mb-8">
                       <div className="flex justify-between text-sm">
-                        <span className="text-stone-500 uppercase tracking-widest">Date</span>
-                        <span className="font-medium">{format(parseISO(booking.slot.date), 'MMM d, yyyy')}</span>
+                        <span className="section-kicker">Date</span>
+                        <span className="font-medium text-[color:var(--text-dark)]">{format(parseISO(booking.slot.date), 'MMM d, yyyy')}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-stone-500 uppercase tracking-widest">Time</span>
-                        <span className="font-medium">
+                        <span className="section-kicker">Time</span>
+                        <span className="font-medium text-[color:var(--text-dark)]">
                           {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, getBookingDuration(booking)))}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-stone-500 uppercase tracking-widest">Duration</span>
-                        <span className="font-medium">{getBookingDuration(booking)} mins</span>
+                        <span className="section-kicker">Duration</span>
+                        <span className="font-medium text-[color:var(--text-dark)]">{getBookingDuration(booking)} mins</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-stone-500 uppercase tracking-widest">Price</span>
-                        <span className="font-medium">₹{booking.services.reduce((sum, service) => sum + service.price, 0)}</span>
+                        <span className="section-kicker">Price</span>
+                        <span className="font-medium text-[color:var(--text-dark)]">₹{booking.services.reduce((sum, service) => sum + service.price, 0)}</span>
                       </div>
                     </div>
                   )}
@@ -313,7 +351,7 @@ export default function Dashboard() {
                   {booking.canCancel && booking.displayStatus !== 'Asked to Reschedule' && booking.displayStatus !== 'Reschedule Proposed' ? (
                     <button
                       onClick={() => handleCancel(booking.id)}
-                      className="w-full border border-stone-300 text-stone-600 py-3 text-xs uppercase tracking-widest hover:bg-stone-50 transition-colors"
+                      className="editorial-btn editorial-btn-subtle w-full py-3"
                     >
                       Cancel Appointment
                     </button>
@@ -325,43 +363,43 @@ export default function Dashboard() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-serif text-stone-900 mb-8 pb-4 border-b border-stone-200">Upcoming</h2>
+          <h2 className="section-heading mb-8 border-b border-[color:var(--border-light)] pb-4 text-2xl font-serif">Upcoming</h2>
           {upcomingBookings.length === 0 ? (
-            <p className="text-stone-500 text-sm uppercase tracking-widest">No upcoming appointments.</p>
+            <EmptyState label="No upcoming appointments" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {upcomingBookings.map((booking) => (
-                <div key={booking.id} className="bg-white border border-stone-200 p-6 shadow-sm">
+                <div key={booking.id} className={clsx('booking-card p-6', getBookingCardTone(booking))}>
                   <div className="flex justify-between items-start mb-6 gap-4">
                     <div>
-                      <h3 className="font-serif text-xl mb-1">{booking.services.map((service) => service.name).join(', ')}</h3>
-                      <p className="text-xs uppercase tracking-widest text-stone-500">with {booking.stylist.name}</p>
+                      <h3 className="font-serif text-xl mb-1 text-[color:var(--text-dark)]">{booking.services.map((service) => service.name).join(', ')}</h3>
+                      <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">with {booking.stylist.name}</p>
                     </div>
-                    <span className={clsx('text-xs uppercase tracking-widest px-3 py-1', getStatusClasses(booking))}>
+                    <span className={clsx(getStatusClasses(booking))}>
                       {booking.displayStatus}
                     </span>
                   </div>
 
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between text-sm">
-                      <span className="text-stone-500 uppercase tracking-widest">Date</span>
-                      <span className="font-medium">{format(parseISO(booking.slot.date), 'MMM d, yyyy')}</span>
+                      <span className="section-kicker">Date</span>
+                      <span className="font-medium text-[color:var(--text-dark)]">{format(parseISO(booking.slot.date), 'MMM d, yyyy')}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-stone-500 uppercase tracking-widest">Time</span>
-                      <span className="font-medium">
+                      <span className="section-kicker">Time</span>
+                      <span className="font-medium text-[color:var(--text-dark)]">
                         {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, getBookingDuration(booking)))}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-stone-500 uppercase tracking-widest">Price</span>
-                      <span className="font-medium">₹{booking.services.reduce((sum, service) => sum + service.price, 0)}</span>
+                      <span className="section-kicker">Price</span>
+                      <span className="font-medium text-[color:var(--text-dark)]">₹{booking.services.reduce((sum, service) => sum + service.price, 0)}</span>
                     </div>
                   </div>
 
                   {booking.displayStatus === 'Reschedule Proposed' && booking.proposed_slot && booking.canRespondToReschedule ? (
                     <div className="space-y-4">
-                      <div className="bg-purple-50 p-4 border border-purple-200 rounded-sm text-sm text-purple-900">
+                      <div className="rounded-[var(--radius-md)] border border-[color:var(--status-reschedule-border)] bg-[color:var(--status-reschedule-bg)] p-4 text-sm text-[color:var(--text-dark)]">
                         Proposed: {format(parseISO(booking.proposed_slot.date), 'MMM d, yyyy')} • {formatTimeRange(
                           booking.proposed_slot.time,
                           addMinutes(booking.proposed_slot.time, getBookingDuration(booking)),
@@ -370,13 +408,13 @@ export default function Dashboard() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleRescheduleResponse(booking.id, true)}
-                          className="flex-1 bg-purple-700 text-white py-2 text-xs uppercase tracking-widest hover:bg-purple-800"
+                          className="editorial-btn editorial-btn-dark flex-1 py-3"
                         >
                           Accept New Time
                         </button>
                         <button
                           onClick={() => handleRescheduleResponse(booking.id, false)}
-                          className="flex-1 bg-white border border-purple-600 text-purple-800 py-2 text-xs uppercase tracking-widest hover:bg-purple-50"
+                          className="editorial-btn editorial-btn-soft flex-1 py-3"
                         >
                           Keep Original
                         </button>
@@ -395,14 +433,14 @@ export default function Dashboard() {
                             oldTime: booking.slot.time,
                           },
                         })}
-                        className="w-full bg-purple-600 text-white py-3 text-xs uppercase tracking-widest hover:bg-purple-700 transition-colors"
+                        className="editorial-btn editorial-btn-dark w-full py-3"
                       >
                         Accept Rescheduling
                       </button>
                       {booking.canCancel ? (
                         <button
                           onClick={() => handleCancel(booking.id)}
-                          className="w-full border border-purple-300 text-purple-900 py-3 text-xs uppercase tracking-widest hover:bg-purple-100 transition-colors"
+                          className="editorial-btn editorial-btn-soft w-full py-3"
                         >
                           Cancel Booking
                         </button>
@@ -411,7 +449,7 @@ export default function Dashboard() {
                   ) : booking.canCancel ? (
                     <button
                       onClick={() => handleCancel(booking.id)}
-                      className="w-full border border-stone-300 text-stone-600 py-3 text-xs uppercase tracking-widest hover:bg-stone-50 transition-colors"
+                      className="editorial-btn editorial-btn-subtle w-full py-3"
                     >
                       Cancel Appointment
                     </button>
@@ -423,16 +461,16 @@ export default function Dashboard() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-serif text-stone-900 mb-8 pb-4 border-b border-stone-200">Past & Expired</h2>
+          <h2 className="section-heading mb-8 border-b border-[color:var(--border-light)] pb-4 text-2xl font-serif">Past & Expired</h2>
           {archivedBookings.length === 0 ? (
-            <p className="text-stone-500 text-sm uppercase tracking-widest">No past appointments.</p>
+            <EmptyState label="No past appointments" />
           ) : (
             <div className="space-y-4">
               {archivedBookings.map((booking) => (
-                <div key={booking.id} className="bg-white border border-stone-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4 opacity-75">
+                <div key={booking.id} className={clsx('booking-card flex flex-col items-center justify-between gap-4 p-6 opacity-75 md:flex-row', getBookingCardTone(booking))}>
                   <div className="flex-1">
-                    <h3 className="font-serif text-lg mb-1">{booking.services.map((service) => service.name).join(', ')}</h3>
-                    <p className="text-xs uppercase tracking-widest text-stone-500">
+                    <h3 className="font-serif text-lg mb-1 text-[color:var(--text-dark)]">{booking.services.map((service) => service.name).join(', ')}</h3>
+                    <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">
                       {format(parseISO(booking.slot.date), 'MMM d, yyyy')} • {formatTimeRange(
                         booking.slot.time,
                         addMinutes(booking.slot.time, getBookingDuration(booking)),
@@ -440,7 +478,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className={clsx('text-xs uppercase tracking-widest px-3 py-1 border', getStatusClasses(booking))}>
+                    <span className={clsx(getStatusClasses(booking))}>
                       {booking.displayStatus}
                     </span>
                   </div>
@@ -449,6 +487,7 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+      </div>
       </div>
     </div>
   );

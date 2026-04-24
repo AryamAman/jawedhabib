@@ -18,15 +18,16 @@ export default function Services() {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+    <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         className="text-center mb-16"
       >
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-6">Our Services</h1>
-        <div className="w-12 h-[1px] bg-stone-900 mx-auto"></div>
+        <h1 className="section-heading text-4xl md:text-5xl font-serif mb-6">Our Services</h1>
+        <div className="editorial-divider"></div>
       </motion.div>
 
       <div className="space-y-8">
@@ -36,17 +37,18 @@ export default function Services() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: i * 0.1 }}
-            className="flex justify-between items-center border-b border-stone-200 pb-6"
+            className="surface-card reveal-card flex items-center justify-between gap-6 px-6 py-7"
           >
             <div>
-              <h3 className="text-xl font-serif text-stone-900 mb-2">{service.name}</h3>
-              <p className="text-sm text-stone-500 uppercase tracking-widest">{service.duration_minutes} mins</p>
+              <h3 className="text-xl font-serif text-[color:var(--text-dark)] mb-2">{service.name}</h3>
+              <p className="text-sm uppercase tracking-[0.18em] text-[color:var(--accent-gold)]">{service.duration_minutes} mins</p>
             </div>
-            <div className="text-xl font-serif text-stone-900">
+            <div className="text-xl font-serif text-[color:var(--text-dark)]">
               ₹{service.price}
             </div>
           </motion.div>
         ))}
+      </div>
       </div>
     </div>
   );

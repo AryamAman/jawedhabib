@@ -3,20 +3,21 @@ import { Link } from 'react-router-dom';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="page-shell flex min-h-screen flex-col">
       {/* Hero Section */}
-      <section className="relative h-[90vh] flex items-center justify-center overflow-hidden">
+      <section className="hero-shell relative flex h-[90vh] items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
             src="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2574&auto=format&fit=crop" 
             alt="Luxury Salon Interior" 
-            className="w-full h-full object-cover"
+            className="hero-media"
             referrerPolicy="no-referrer"
             loading="eager"
             fetchPriority="high"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-black/40"></div>
+          <div className="hero-overlay" />
+          <div className="hero-noise" />
         </div>
         
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
@@ -24,7 +25,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-5xl md:text-7xl font-serif text-white mb-6 tracking-tight"
+            className="hero-title text-5xl md:text-7xl font-serif mb-6"
           >
             Jawed Habib
           </motion.h1>
@@ -32,7 +33,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-lg md:text-xl text-stone-200 mb-10 uppercase tracking-widest"
+            className="hero-sub mb-10 text-base md:text-lg"
           >
             Exclusive to BITS Pilani
           </motion.p>
@@ -43,7 +44,7 @@ export default function Home() {
           >
             <Link 
               to="/book" 
-              className="inline-block bg-white text-stone-900 px-10 py-4 text-sm uppercase tracking-widest hover:bg-stone-100 transition-colors"
+              className="hero-cta editorial-btn editorial-btn-light px-10"
             >
               Book Appointment
             </Link>
@@ -52,11 +53,11 @@ export default function Home() {
       </section>
 
       {/* Services Section */}
-      <section className="py-24 bg-stone-50">
+      <section className="section-light py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-serif text-stone-900 mb-4">Our Services</h2>
-            <div className="w-12 h-[1px] bg-stone-900 mx-auto"></div>
+            <h2 className="section-heading text-3xl font-serif mb-4">Our Services</h2>
+            <div className="editorial-divider"></div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -72,25 +73,25 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                className="group cursor-pointer"
+                className="reveal-card group"
               >
-                <div className="relative h-[400px] overflow-hidden mb-6">
+                <div className="surface-card surface-card-hover overflow-hidden mb-6">
                   <img 
                     src={service.img} 
                     alt={service.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="h-[400px] w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     referrerPolicy="no-referrer"
                     loading="lazy"
                     decoding="async"
                   />
                 </div>
-                <h3 className="text-xl font-serif text-center group-hover:text-stone-600 transition-colors">{service.name}</h3>
+                <h3 className="text-xl font-serif text-center text-[color:var(--text-dark)] group-hover:text-[color:var(--accent-gold)] transition-colors">{service.name}</h3>
               </motion.div>
             ))}
           </div>
           
           <div className="text-center mt-16">
-            <Link to="/services" className="text-sm uppercase tracking-widest border-b border-stone-900 pb-1 hover:text-stone-600 hover:border-stone-600 transition-colors">
+            <Link to="/services" className="editorial-btn editorial-btn-subtle">
               View All Services
             </Link>
           </div>
@@ -98,11 +99,11 @@ export default function Home() {
       </section>
 
       {/* Stylists Section */}
-      <section className="py-24 bg-white">
+      <section className="section-light-alt py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-serif text-stone-900 mb-4">The Team</h2>
-            <div className="w-12 h-[1px] bg-stone-900 mx-auto"></div>
+            <h2 className="section-heading text-3xl font-serif mb-4">The Team</h2>
+            <div className="editorial-divider"></div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -117,9 +118,9 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                className="text-center"
+                className="reveal-card surface-card surface-card-hover text-center px-8 py-10"
               >
-                <div className="w-48 h-48 mx-auto rounded-full overflow-hidden mb-6">
+                <div className="stylist-avatar mx-auto mb-6 h-48 w-48 overflow-hidden rounded-full">
                   <img 
                     src={stylist.img} 
                     alt={stylist.name} 
@@ -129,8 +130,8 @@ export default function Home() {
                     decoding="async"
                   />
                 </div>
-                <h3 className="text-lg font-serif mb-1">{stylist.name}</h3>
-                <p className="text-xs uppercase tracking-widest text-stone-500">{stylist.role}</p>
+                <h3 className="text-lg font-serif mb-1 text-[color:var(--text-dark)]">{stylist.name}</h3>
+                <p className="text-[0.7rem] uppercase tracking-[0.15em] text-[color:var(--accent-gold)]">{stylist.role}</p>
               </motion.div>
             ))}
           </div>
@@ -138,11 +139,11 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 bg-stone-900 text-center px-4">
-        <h2 className="text-4xl font-serif text-white mb-8">Ready for a change?</h2>
+      <section className="cta-shell cta-accent py-32 text-center px-4">
+        <h2 className="text-4xl font-serif text-[color:var(--text-primary)] mb-8">Ready for a change?</h2>
         <Link 
           to="/book" 
-          className="inline-block border border-white text-white px-10 py-4 text-sm uppercase tracking-widest hover:bg-white hover:text-stone-900 transition-colors"
+          className="editorial-btn editorial-btn-outline px-10"
         >
           Book Your Appointment
         </Link>
