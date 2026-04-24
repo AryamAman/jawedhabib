@@ -491,6 +491,44 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
+.auth-layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.auth-message-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+  padding: 2rem 1.75rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-card-muted) 92%, transparent);
+  box-shadow: var(--shadow-card);
+}
+
+.auth-message-panel .editorial-divider {
+  margin: 0 0 1.25rem;
+}
+
+.auth-message-panel .auth-subtitle {
+  max-width: 30rem;
+  color: var(--text-dark);
+}
+
+@media (min-width: 1024px) {
+  .auth-layout {
+    grid-template-columns: minmax(0, 560px) minmax(280px, 360px);
+    gap: 2rem;
+  }
+
+  .auth-message-panel {
+    min-height: 100%;
+  }
+}
+
 .hero-shell {
   position: relative;
   isolation: isolate;
