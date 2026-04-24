@@ -379,18 +379,24 @@ export default function Book() {
                       }
                     }}
                     className={clsx(
-                      'surface-card surface-card-hover p-6 text-left transition-all duration-200 min-h-[148px] flex flex-col justify-between',
+                      'booking-choice-card surface-card surface-card-hover p-6 text-left transition-all duration-200 min-h-[148px] flex flex-col justify-between',
                       isSelected
-                        ? 'border-[color:var(--accent-gold)] bg-[color:var(--bg-base)] text-[color:var(--text-primary)] shadow-lg'
+                        ? 'booking-choice-card--selected'
                         : 'text-[color:var(--text-dark)]',
                     )}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="font-serif text-2xl mb-2">{service.name}</h3>
+                        <h3 className={clsx(
+                          'font-serif text-2xl mb-2',
+                          isSelected && 'booking-choice-title--selected',
+                        )}
+                        >
+                          {service.name}
+                        </h3>
                         <p className={clsx(
                           'text-xs uppercase tracking-[0.24em]',
-                          isSelected ? 'text-[color:var(--text-secondary)]' : 'text-[color:var(--accent-gold)]',
+                          isSelected ? 'booking-choice-meta--selected' : 'text-[color:var(--accent-gold)]',
                         )}
                         >
                           {service.duration_minutes} minutes
@@ -398,7 +404,7 @@ export default function Book() {
                       </div>
                       <span className={clsx(
                         'inline-flex h-8 min-w-8 items-center justify-center border px-2 text-[11px] uppercase tracking-[0.22em]',
-                        isSelected ? 'border-[color:var(--accent-gold-border)] text-[color:var(--text-primary)]' : 'border-[color:var(--border-light)] text-[color:var(--text-muted-dark)]',
+                        isSelected ? 'booking-choice-chip--selected' : 'border-[color:var(--border-light)] text-[color:var(--text-muted-dark)]',
                       )}
                       >
                         ₹{service.price}
@@ -406,7 +412,7 @@ export default function Book() {
                     </div>
                     <span className={clsx(
                       'inline-flex w-fit rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
-                      isSelected ? 'border-[color:var(--accent-gold-border)] text-[color:var(--text-primary)]' : 'border-[color:var(--border-light)] text-[color:var(--text-secondary)]',
+                      isSelected ? 'booking-choice-pill--selected' : 'border-[color:var(--border-light)] text-[color:var(--text-secondary)]',
                     )}
                     >
                       {isSelected ? 'Included' : 'Tap to add'}
@@ -430,16 +436,22 @@ export default function Book() {
                     setFocusedSlotId('');
                   }}
                   className={clsx(
-                    'surface-card surface-card-hover p-6 text-left transition-all duration-200',
+                    'booking-choice-card surface-card surface-card-hover p-6 text-left transition-all duration-200',
                     selectedStylist === stylist.id
-                      ? 'border-[color:var(--accent-gold)] bg-[color:var(--bg-base)] text-[color:var(--text-primary)] shadow-lg'
+                      ? 'booking-choice-card--selected'
                       : 'text-[color:var(--text-dark)]',
                   )}
                 >
-                  <h3 className="font-serif text-2xl mb-2">{stylist.name}</h3>
+                  <h3 className={clsx(
+                    'font-serif text-2xl mb-2',
+                    selectedStylist === stylist.id && 'booking-choice-title--selected',
+                  )}
+                  >
+                    {stylist.name}
+                  </h3>
                   <p className={clsx(
                     'text-xs uppercase tracking-[0.24em]',
-                    selectedStylist === stylist.id ? 'text-[color:var(--text-secondary)]' : 'text-[color:var(--accent-gold)]',
+                    selectedStylist === stylist.id ? 'booking-choice-meta--selected' : 'text-[color:var(--accent-gold)]',
                   )}
                   >
                     {stylist.role}
@@ -478,11 +490,11 @@ export default function Book() {
                       className={clsx(
                         'flex-shrink-0 min-w-[78px] sm:min-w-[92px] surface-card px-3 sm:px-4 py-4 text-center snap-start transition-all duration-200',
                         format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                          ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                          ? 'booking-date-pill--selected'
                           : 'text-[color:var(--text-dark)]',
                       )}
                     >
-                      <p className="text-xs uppercase tracking-[0.24em] mb-2">{format(date, 'EEE')}</p>
+                      <p className="booking-date-pill__meta text-xs uppercase tracking-[0.24em] mb-2">{format(date, 'EEE')}</p>
                       <p className="font-serif text-3xl leading-none">{format(date, 'd')}</p>
                     </button>
                   ))}

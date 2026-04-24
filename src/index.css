@@ -296,6 +296,66 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
+.booking-choice-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.booking-choice-card--selected {
+  background:
+    radial-gradient(circle at top right, rgba(191, 164, 106, 0.16), transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-base) 93%, var(--accent-gold) 7%) 0%, var(--bg-base) 100%);
+  border-color: color-mix(in srgb, var(--accent-gold) 72%, var(--border-strong) 28%);
+  color: var(--text-primary);
+  box-shadow:
+    0 16px 30px rgba(12, 12, 12, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(191, 164, 106, 0.08);
+}
+
+.booking-choice-card--selected:hover {
+  box-shadow:
+    0 20px 34px rgba(12, 12, 12, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(191, 164, 106, 0.12);
+}
+
+.booking-choice-title--selected {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.booking-choice-meta--selected {
+  color: color-mix(in srgb, var(--accent-gold) 70%, var(--text-primary) 30%);
+}
+
+.booking-choice-chip--selected {
+  border-color: rgba(191, 164, 106, 0.4);
+  background: rgba(191, 164, 106, 0.1);
+  color: var(--text-primary);
+}
+
+.booking-choice-pill--selected {
+  border-color: rgba(191, 164, 106, 0.38);
+  background: rgba(191, 164, 106, 0.12);
+  color: color-mix(in srgb, var(--accent-gold) 72%, var(--text-primary) 28%);
+}
+
+.booking-date-pill--selected {
+  border-color: color-mix(in srgb, var(--accent-gold) 68%, var(--border-strong) 32%);
+  background:
+    radial-gradient(circle at top right, rgba(191, 164, 106, 0.12), transparent 46%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-base) 94%, var(--accent-gold) 6%) 0%, var(--bg-base) 100%);
+  color: var(--text-primary);
+  box-shadow:
+    0 12px 24px rgba(12, 12, 12, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.booking-date-pill--selected .booking-date-pill__meta {
+  color: color-mix(in srgb, var(--accent-gold) 70%, var(--text-primary) 30%);
+}
+
 .editorial-border-left {
   border-left: 3px solid var(--accent-gold);
 }
