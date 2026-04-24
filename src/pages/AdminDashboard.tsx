@@ -27,6 +27,14 @@ interface Booking {
   id: string;
   status: string;
   duration_minutes: number;
+  displayStatus: 'Requested' | 'Confirmed' | 'Asked to Reschedule' | 'Reschedule Proposed' | 'Rescheduled' | 'Expired' | 'Cancelled' | 'Rejected';
+  isExpired: boolean;
+  isUpcoming: boolean;
+  canAdminConfirm: boolean;
+  canAdminReject: boolean;
+  canAdminAskReschedule: boolean;
+  canAdminProposeSlot: boolean;
+  canAdminCancel: boolean;
   student: { name: string; email: string; phone_display?: string | null };
   services: { id: string; name: string; price: number; duration_minutes: number }[];
   stylist: { id: string; name: string };
@@ -77,6 +85,28 @@ const CELL_WIDTH = 10;
 const BOOKING_BLOCK_TOP = 18;
 const BOOKING_BLOCK_HEIGHT = 34;
 const UNDO_STORAGE_KEY = 'admin-undo-stack-v1';
+const INDIA_TIME_ZONE = 'Asia/Kolkata';
+
+const getDateStringInIndia = (date: Date) => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: INDIA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  return `${year}-${month}-${day}`;
+};
+
+const compareBookings = (first: Booking, second: Booking) => {
+  const firstKey = `${first.slot.date}T${first.slot.time}`;
+  const secondKey = `${second.slot.date}T${second.slot.time}`;
+  return firstKey.localeCompare(secondKey);
+};
 
 export default function AdminDashboard() {
   const [admin, setAdmin] = useState<{ email: string } | null>(null);
@@ -117,6 +147,9 @@ export default function AdminDashboard() {
   const token = localStorage.getItem('adminToken');
 
   const dates = Array.from({ length: 14 }).map((_, index) => addDays(startOfToday(), index));
+  const selectedDateString = format(selectedDate, 'yyyy-MM-dd');
+  const todayInIndia = getDateStringInIndia(new Date());
+  const isSelectedDatePast = selectedDateString < todayInIndia;
 
   const fetchBookings = async () => {
     if (!token) {
@@ -150,7 +183,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    const dateString = format(selectedDate, 'yyyy-MM-dd');
+    const dateString = selectedDateString;
     setLoadingSchedule(true);
 
     try {
@@ -187,7 +220,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    const dateString = format(selectedDate, 'yyyy-MM-dd');
+    const dateString = selectedDateString;
     setLoadingRecords(true);
 
     try {
@@ -244,13 +277,13 @@ export default function AdminDashboard() {
     if (selectedStylist) {
       fetchSchedule();
     }
-  }, [selectedStylist, selectedDate]);
+  }, [selectedStylist, selectedDateString]);
 
   useEffect(() => {
     if (activeTab === 'records') {
       fetchDailyRecords();
     }
-  }, [activeTab, selectedDate]);
+  }, [activeTab, selectedDateString]);
 
   useEffect(() => {
     localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(undoStack));
@@ -326,19 +359,25 @@ export default function AdminDashboard() {
     return booking.services?.reduce((total, service) => total + service.duration_minutes, 0) ?? 0;
   };
 
-  const getBookingCardStatus = (status: string) => {
-    if (status === 'PENDING') return 'bg-green-50 border-green-200 text-green-900';
-    if (status === 'RESCHEDULE_PENDING' || status === 'RESCHEDULE_PROPOSED' || status === 'NEEDS_RESCHEDULE') {
+  const getBookingCardStatus = (booking: Booking) => {
+    if (booking.displayStatus === 'Requested') return 'bg-green-50 border-green-200 text-green-900';
+    if (booking.displayStatus === 'Rescheduled' || booking.displayStatus === 'Reschedule Proposed' || booking.displayStatus === 'Asked to Reschedule') {
       return 'bg-purple-50 border-purple-200 text-purple-900';
     }
-    if (status === 'CANCELLED' || status === 'REJECTED') return 'bg-red-50 border-red-200 text-red-900';
+    if (booking.displayStatus === 'Cancelled' || booking.displayStatus === 'Rejected' || booking.displayStatus === 'Expired') {
+      return 'bg-stone-100 border-stone-200 text-stone-700';
+    }
     return 'bg-white border-stone-200 text-stone-900';
   };
 
-  const getBookingStatusLabel = (status: string) => {
-    if (status === 'RESCHEDULE_PENDING') return 'Student Rescheduled';
-    if (status === 'RESCHEDULE_PROPOSED') return 'Awaiting Response';
-    if (status === 'NEEDS_RESCHEDULE') return 'Needs Reschedule';
+  const getBookingStatusLabel = (booking: Booking) => booking.displayStatus;
+
+  const getScheduleBookingStatusLabel = (status: string) => {
+    if (status === 'PENDING') return 'Requested';
+    if (status === 'RESCHEDULE_PENDING') return 'Rescheduled';
+    if (status === 'RESCHEDULE_PROPOSED') return 'Reschedule Proposed';
+    if (status === 'NEEDS_RESCHEDULE') return 'Asked to Reschedule';
+    if (status === 'CONFIRMED') return 'Confirmed';
     return status;
   };
 
@@ -479,6 +518,11 @@ export default function AdminDashboard() {
   };
 
   const handleProposeNewTime = async (bookingId: string, slotId: string) => {
+    if (isSelectedDatePast) {
+      toast.error('Past-day bookings are read-only.');
+      return;
+    }
+
     const booking = bookings.find((candidate) => candidate.id === bookingId);
 
     try {
@@ -513,6 +557,11 @@ export default function AdminDashboard() {
   };
 
   const handleApplyRangeStatus = async (status: 'AVAILABLE' | 'UNAVAILABLE') => {
+    if (isSelectedDatePast) {
+      toast.error('Past-day timelines are read-only.');
+      return;
+    }
+
     if (!selectedRange || !selectedStylist) {
       return;
     }
@@ -555,6 +604,11 @@ export default function AdminDashboard() {
   };
 
   const handleSingleSegmentStatus = async (slot: ScheduleSlot, status: 'AVAILABLE' | 'UNAVAILABLE') => {
+    if (isSelectedDatePast) {
+      toast.error('Past-day timelines are read-only.');
+      return;
+    }
+
     const range = {
       startTime: slot.time,
       endTime: addMinutes(slot.time, schedule?.meta.stepMinutes ?? SLOT_INTERVAL_MINUTES),
@@ -617,7 +671,7 @@ export default function AdminDashboard() {
   const currentDraggedBooking = currentScheduleBookings.find((booking) => booking.id === draggingBookingId) ?? null;
 
   const canDropBookingOnSlot = (slot: ScheduleSlot) => {
-    if (!schedule || !currentDraggedBooking) {
+    if (!schedule || !currentDraggedBooking || isSelectedDatePast) {
       return false;
     }
 
@@ -646,19 +700,25 @@ export default function AdminDashboard() {
     ? timeToMinutes(activeRange.endTime) - timeToMinutes(activeRange.startTime)
     : 0;
 
-  const pendingBookings = bookings.filter((booking) => booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING');
-  const activeBookings = bookings.filter((booking) => (
-    booking.status === 'CONFIRMED'
-    || booking.status === 'RESCHEDULE_PROPOSED'
-    || booking.status === 'NEEDS_RESCHEDULE'
-  ));
+  const archivedBookings = bookings
+    .filter((booking) => booking.isExpired || booking.displayStatus === 'Cancelled' || booking.displayStatus === 'Rejected')
+    .sort(compareBookings);
+  const upcomingBookings = bookings
+    .filter((booking) => !booking.isExpired && booking.isUpcoming && booking.displayStatus !== 'Cancelled' && booking.displayStatus !== 'Rejected')
+    .sort(compareBookings);
+  const pendingBookings = bookings
+    .filter((booking) => !booking.isExpired && !booking.isUpcoming && (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING'))
+    .sort(compareBookings);
+  const activeBookings = bookings
+    .filter((booking) => !booking.isExpired && !booking.isUpcoming && booking.status !== 'PENDING' && booking.status !== 'RESCHEDULE_PENDING' && booking.displayStatus !== 'Cancelled' && booking.displayStatus !== 'Rejected')
+    .sort(compareBookings);
 
   const BookingCard = ({ booking }: { booking: Booking }) => {
     const durationMinutes = getAdminBookingDuration(booking);
     const endTime = addMinutes(booking.slot.time, durationMinutes);
 
     return (
-      <div className={clsx('border p-5 shadow-sm', getBookingCardStatus(booking.status))}>
+      <div className={clsx('border p-5 shadow-sm', getBookingCardStatus(booking))}>
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h3 className="font-serif text-2xl mb-1">{booking.student.name}</h3>
@@ -668,7 +728,7 @@ export default function AdminDashboard() {
             ) : null}
           </div>
           <span className="border border-current/20 px-3 py-2 text-[11px] uppercase tracking-[0.22em]">
-            {getBookingStatusLabel(booking.status)}
+            {getBookingStatusLabel(booking)}
           </span>
         </div>
 
@@ -688,7 +748,7 @@ export default function AdminDashboard() {
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {(booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING') && (
+          {booking.canAdminConfirm && (
             <>
               <button
                 type="button"
@@ -697,6 +757,10 @@ export default function AdminDashboard() {
               >
                 Accept
               </button>
+            </>
+          )}
+          {booking.canAdminReject && (
+            <>
               <button
                 type="button"
                 onClick={() => handleStatusChange(booking.id, 'REJECTED', 'Reject this booking request?')}
@@ -704,6 +768,10 @@ export default function AdminDashboard() {
               >
                 Reject
               </button>
+            </>
+          )}
+          {booking.canAdminAskReschedule && (
+            <>
               <button
                 type="button"
                 onClick={() => handleStatusChange(booking.id, 'NEEDS_RESCHEDULE', 'Ask the student to pick a new time?')}
@@ -714,28 +782,25 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {booking.status === 'CONFIRMED' && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleStatusChange(booking.id, 'CANCELLED', 'Cancel this confirmed appointment?')}
-                className="border border-red-300 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-red-700 hover:bg-red-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStatusChange(booking.id, 'NEEDS_RESCHEDULE', 'Ask the student to reschedule this appointment?')}
-                className="border border-purple-300 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-purple-800 hover:bg-purple-50"
-              >
-                Ask to Reschedule
-              </button>
-            </>
+          {booking.canAdminCancel && booking.status === 'CONFIRMED' && (
+            <button
+              type="button"
+              onClick={() => handleStatusChange(booking.id, 'CANCELLED', 'Cancel this confirmed appointment?')}
+              className="border border-red-300 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-red-700 hover:bg-red-50"
+            >
+              Cancel
+            </button>
           )}
 
-          {booking.status === 'NEEDS_RESCHEDULE' && (
+          {booking.displayStatus === 'Asked to Reschedule' && (
             <span className="text-[11px] uppercase tracking-[0.22em] text-purple-700">
               Student needs to pick a new time
+            </span>
+          )}
+
+          {booking.displayStatus === 'Expired' && (
+            <span className="text-[11px] uppercase tracking-[0.22em] text-stone-500">
+              Expired and non-actionable
             </span>
           )}
         </div>
@@ -868,6 +933,46 @@ export default function AdminDashboard() {
               )) : (
                 <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
                   No active appointments
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="border border-stone-200 bg-stone-50 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-serif text-2xl text-stone-900">Upcoming</h3>
+              <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+                {upcomingBookings.length}
+              </span>
+            </div>
+            <div className="space-y-4">
+              {upcomingBookings.length > 0 ? upcomingBookings.map((booking) => (
+                <div key={booking.id}>
+                  <BookingCard booking={booking} />
+                </div>
+              )) : (
+                <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
+                  No upcoming bookings
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="border border-stone-200 bg-stone-50 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-serif text-2xl text-stone-900">Expired & Past</h3>
+              <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
+                {archivedBookings.length}
+              </span>
+            </div>
+            <div className="space-y-4">
+              {archivedBookings.length > 0 ? archivedBookings.map((booking) => (
+                <div key={booking.id}>
+                  <BookingCard booking={booking} />
+                </div>
+              )) : (
+                <div className="border border-dashed border-stone-300 p-10 text-center text-sm uppercase tracking-[0.28em] text-stone-500">
+                  No expired bookings
                 </div>
               )}
             </div>
@@ -1104,7 +1209,7 @@ export default function AdminDashboard() {
 
                       {currentScheduleBookings.flatMap((booking) => (
                         getBookingOccupancyRanges(booking).map((range) => {
-                          const canDrag = range.type === 'current' && (
+                          const canDrag = !isSelectedDatePast && range.type === 'current' && (
                             booking.status === 'CONFIRMED'
                             || booking.status === 'PENDING'
                             || booking.status === 'RESCHEDULE_PENDING'
@@ -1189,16 +1294,16 @@ export default function AdminDashboard() {
                                 : 'border-stone-300 bg-white text-stone-700',
                           )}
                           >
-                            {getBookingStatusLabel(focusedBooking.status)}
+                            {getScheduleBookingStatusLabel(focusedBooking.status)}
                           </span>
                         </div>
                         <div className="space-y-2 text-stone-700 mb-5">
                           <p>{formatTimeRange(focusedBooking.start_time, focusedBooking.end_time)}</p>
                           <p>{focusedBooking.services?.map((service) => service.name).join(', ')}</p>
-                          <p>Drag this block to a green start point to propose a new time.</p>
+                          <p>{isSelectedDatePast ? 'Past-day bookings are read-only.' : 'Drag this block to a green start point to propose a new time.'}</p>
                         </div>
                         <div className="flex flex-wrap gap-3">
-                          {(focusedBooking.status === 'CONFIRMED' || focusedBooking.status === 'PENDING' || focusedBooking.status === 'RESCHEDULE_PENDING') && (
+                          {!isSelectedDatePast && (focusedBooking.status === 'CONFIRMED' || focusedBooking.status === 'PENDING' || focusedBooking.status === 'RESCHEDULE_PENDING') && (
                             <button
                               type="button"
                               onClick={() => handleStatusChange(focusedBooking.id, 'NEEDS_RESCHEDULE', 'Ask the student to choose a new time?')}
@@ -1207,7 +1312,7 @@ export default function AdminDashboard() {
                               Ask to Reschedule
                             </button>
                           )}
-                          {focusedBooking.status === 'PENDING' && (
+                          {!isSelectedDatePast && focusedBooking.status === 'PENDING' && (
                             <button
                               type="button"
                               onClick={() => handleStatusChange(focusedBooking.id, 'CONFIRMED')}
@@ -1246,6 +1351,7 @@ export default function AdminDashboard() {
                                 endTime: addMinutes(focusedSlot.time, schedule?.meta.stepMinutes ?? SLOT_INTERVAL_MINUTES),
                               });
                             }}
+                            disabled={isSelectedDatePast}
                             className="border border-yellow-400 bg-yellow-400 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-950 hover:bg-yellow-500"
                           >
                             Select This Segment
@@ -1256,6 +1362,7 @@ export default function AdminDashboard() {
                               const status = getTimelineSlotStatus(focusedSlot) === 'UNAVAILABLE' ? 'AVAILABLE' : 'UNAVAILABLE';
                               handleSingleSegmentStatus(focusedSlot, status);
                             }}
+                            disabled={isSelectedDatePast}
                             className="border border-stone-300 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-700 hover:bg-stone-100"
                           >
                             {getTimelineSlotStatus(focusedSlot) === 'UNAVAILABLE' ? 'Mark Available' : 'Mark Unavailable'}
@@ -1278,12 +1385,15 @@ export default function AdminDashboard() {
                           {activeRangeMinutes} minutes selected
                         </p>
                         <p className="text-sm text-stone-600 mb-5">
-                          Use this swept selection to block multiple timeline segments at once or reopen just a portion of an unavailable section.
+                          {isSelectedDatePast
+                            ? 'Past-day timelines are read-only.'
+                            : 'Use this swept selection to block multiple timeline segments at once or reopen just a portion of an unavailable section.'}
                         </p>
                         <div className="flex flex-col gap-3">
                           <button
                             type="button"
                             onClick={() => handleApplyRangeStatus('UNAVAILABLE')}
+                            disabled={isSelectedDatePast}
                             className="border border-yellow-500 bg-yellow-400 px-4 py-3 text-xs uppercase tracking-[0.22em] text-stone-950 hover:bg-yellow-500"
                           >
                             Mark Unavailable
@@ -1291,6 +1401,7 @@ export default function AdminDashboard() {
                           <button
                             type="button"
                             onClick={() => handleApplyRangeStatus('AVAILABLE')}
+                            disabled={isSelectedDatePast}
                             className="border border-green-700 bg-green-700 px-4 py-3 text-xs uppercase tracking-[0.22em] text-white hover:bg-green-800"
                           >
                             Mark Available
@@ -1331,10 +1442,10 @@ export default function AdminDashboard() {
           <div className="border border-stone-200 bg-white p-6">
             <div className="flex min-w-0 flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Daily Confirmed Register</p>
-                <h3 className="font-serif text-2xl text-stone-900">Confirmed Booking Record For One Day</h3>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-2">Daily Booking Register</p>
+                <h3 className="font-serif text-2xl text-stone-900">Booking Record For One Day</h3>
                 <p className="text-sm text-stone-600 mt-1">
-                  This view keeps a clean record of confirmed appointments only, sorted across the selected day.
+                  This view keeps the selected day’s bookings in one place. Past-day rows are informational only.
                 </p>
               </div>
 
@@ -1370,7 +1481,7 @@ export default function AdminDashboard() {
                   <p className="font-serif text-2xl text-stone-900">{format(selectedDate, 'MMM d, yyyy')}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Confirmed Appointments</p>
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Bookings On Day</p>
                   <p className="font-serif text-4xl text-stone-900">{dailyRecords.length}</p>
                 </div>
                 <div>
@@ -1383,7 +1494,7 @@ export default function AdminDashboard() {
             <div className="min-w-0 border border-stone-200 bg-white p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Confirmed List</p>
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-1">Day Register</p>
                   <h4 className="font-serif text-2xl text-stone-900">Appointment Log</h4>
                 </div>
                 <span className="border border-stone-300 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-stone-700">
@@ -1393,7 +1504,7 @@ export default function AdminDashboard() {
 
               {loadingRecords ? (
                 <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.24em] text-stone-500">
-                  Loading confirmed records
+                  Loading booking records
                 </div>
               ) : dailyRecords.length > 0 ? (
                 <div className="space-y-4">
@@ -1410,8 +1521,15 @@ export default function AdminDashboard() {
                               <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400 mt-2">{booking.student.phone_display}</p>
                             ) : null}
                           </div>
-                          <div className="border border-green-300 bg-green-100 px-4 py-3 text-right text-green-900">
-                            <p className="text-[11px] uppercase tracking-[0.22em] mb-1">Confirmed Time</p>
+                          <div className={clsx('px-4 py-3 text-right border', booking.displayStatus === 'Requested'
+                            ? 'border-green-300 bg-green-100 text-green-900'
+                            : booking.displayStatus === 'Rescheduled' || booking.displayStatus === 'Reschedule Proposed' || booking.displayStatus === 'Asked to Reschedule'
+                              ? 'border-purple-300 bg-purple-100 text-purple-900'
+                              : booking.displayStatus === 'Expired' || booking.displayStatus === 'Cancelled' || booking.displayStatus === 'Rejected'
+                                ? 'border-stone-300 bg-stone-100 text-stone-700'
+                                : 'border-green-300 bg-green-100 text-green-900')}
+                          >
+                            <p className="text-[11px] uppercase tracking-[0.22em] mb-1">{booking.displayStatus}</p>
                             <p className="font-serif text-2xl">
                               {formatTimeRange(booking.slot.time, addMinutes(booking.slot.time, durationMinutes))}
                             </p>
@@ -1438,7 +1556,7 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="border border-dashed border-stone-300 p-12 text-center text-sm uppercase tracking-[0.24em] text-stone-500">
-                  No confirmed bookings recorded for this day
+                  No bookings recorded for this day
                 </div>
               )}
             </div>

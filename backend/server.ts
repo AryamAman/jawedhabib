@@ -193,6 +193,134 @@ app.disable('x-powered-by');
     profileCompleted: student.profile_completed && Boolean(student.phone_e164),
   });
 
+  type BookingDisplayStatus =
+    | 'Requested'
+    | 'Confirmed'
+    | 'Asked to Reschedule'
+    | 'Reschedule Proposed'
+    | 'Rescheduled'
+    | 'Expired'
+    | 'Cancelled'
+    | 'Rejected';
+
+  type BookingLifecyclePresentation = {
+    isExpired: boolean;
+    isUpcoming: boolean;
+    displayStatus: BookingDisplayStatus;
+    canCancel: boolean;
+    canRespondToReschedule: boolean;
+    canAdminConfirm: boolean;
+    canAdminReject: boolean;
+    canAdminAskReschedule: boolean;
+    canAdminProposeSlot: boolean;
+    canAdminCancel: boolean;
+  };
+
+  const INDIA_TIME_ZONE = 'Asia/Kolkata';
+
+  const getDateStringInTimeZone = (date: Date, timeZone: string = INDIA_TIME_ZONE) => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find((part) => part.type === 'year')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
+    const day = parts.find((part) => part.type === 'day')?.value;
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const getTodayDateInIndia = () => getDateStringInTimeZone(new Date(), INDIA_TIME_ZONE);
+
+  const getRawBookingDisplayStatus = (status: string): BookingDisplayStatus => {
+    if (status === 'PENDING') {
+      return 'Requested';
+    }
+
+    if (status === 'CONFIRMED') {
+      return 'Confirmed';
+    }
+
+    if (status === 'NEEDS_RESCHEDULE') {
+      return 'Asked to Reschedule';
+    }
+
+    if (status === 'RESCHEDULE_PROPOSED') {
+      return 'Reschedule Proposed';
+    }
+
+    if (status === 'RESCHEDULE_PENDING') {
+      return 'Rescheduled';
+    }
+
+    if (status === 'CANCELLED') {
+      return 'Cancelled';
+    }
+
+    if (status === 'REJECTED') {
+      return 'Rejected';
+    }
+
+    return 'Requested';
+  };
+
+  const buildBookingPresentation = (booking: { status: string; slot: { date: string } }): BookingLifecyclePresentation => {
+    const todayDate = getTodayDateInIndia();
+    const bookingDate = booking.slot.date;
+    const isExpired = bookingDate < todayDate;
+    const isUpcoming = bookingDate > todayDate;
+    const isTerminal = booking.status === 'CANCELLED' || booking.status === 'REJECTED';
+    const displayStatus = isExpired && !isTerminal
+      ? 'Expired'
+      : getRawBookingDisplayStatus(booking.status);
+    const isActionable = !isExpired && !isTerminal;
+
+    return {
+      isExpired,
+      isUpcoming,
+      displayStatus,
+      canCancel: isActionable && booking.status !== 'RESCHEDULE_PROPOSED',
+      canRespondToReschedule: isActionable && booking.status === 'RESCHEDULE_PROPOSED',
+      canAdminConfirm: isActionable && (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING'),
+      canAdminReject: isActionable && (booking.status === 'PENDING' || booking.status === 'RESCHEDULE_PENDING'),
+      canAdminAskReschedule: isActionable && (
+        booking.status === 'PENDING'
+        || booking.status === 'RESCHEDULE_PENDING'
+        || booking.status === 'CONFIRMED'
+      ),
+      canAdminProposeSlot: isActionable && (
+        booking.status === 'CONFIRMED'
+        || booking.status === 'PENDING'
+        || booking.status === 'RESCHEDULE_PENDING'
+        || booking.status === 'RESCHEDULE_PROPOSED'
+      ),
+      canAdminCancel: isActionable,
+    };
+  };
+
+  const withBookingPresentation = <T extends { status: string; slot: { date: string } }>(booking: T) => ({
+    ...booking,
+    ...buildBookingPresentation(booking),
+  });
+
+  const assertBookingIsActionable = (
+    booking: { status: string; slot: { date: string } },
+    message = 'This booking can no longer be modified.',
+  ) => {
+    const presentation = buildBookingPresentation(booking);
+
+    if (presentation.isExpired || presentation.displayStatus === 'Cancelled' || presentation.displayStatus === 'Rejected') {
+      const error = new Error(message);
+      error.name = 'BOOKING_NOT_ACTIONABLE';
+      throw error;
+    }
+
+    return presentation;
+  };
+
   const isPrismaUniqueConstraintError = (error: unknown, field: string) => {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
       return false;
@@ -1037,7 +1165,7 @@ app.disable('x-powered-by');
         },
         orderBy: { created_at: 'desc' },
       });
-      res.json(bookings);
+      res.json(bookings.map((booking) => withBookingPresentation(booking)));
     } catch (error) {
       res.status(500).json({ error: 'Server error' });
     }
@@ -1047,9 +1175,18 @@ app.disable('x-powered-by');
     const bookingId = req.params.id;
 
     try {
-      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+        include: { slot: true },
+      });
       if (!booking || booking.student_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized' });
+      }
+
+      const presentation = assertBookingIsActionable(booking, 'This booking can no longer be cancelled.');
+
+      if (!presentation.canCancel) {
+        return res.status(400).json({ error: 'This booking cannot be cancelled right now.' });
       }
 
       await prisma.booking.update({
@@ -1061,7 +1198,10 @@ app.disable('x-powered-by');
       });
 
       res.json({ message: 'Booking cancelled' });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
+        return res.status(400).json({ error: error.message });
+      }
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1081,6 +1221,8 @@ app.disable('x-powered-by');
       if (!booking || booking.student_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized' });
       }
+
+      assertBookingIsActionable(booking, 'This booking can no longer be rescheduled.');
 
       if (booking.status !== 'NEEDS_RESCHEDULE') {
         return res.status(400).json({ error: 'Booking does not need reschedule' });
@@ -1109,6 +1251,9 @@ app.disable('x-powered-by');
 
       res.json({ message: 'Rescheduled successfully' });
     } catch (error: any) {
+      if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
+        return res.status(400).json({ error: error.message });
+      }
       if (error?.name === 'PROFILE_INCOMPLETE') {
         return res.status(403).json({ error: error.message });
       }
@@ -1131,6 +1276,12 @@ app.disable('x-powered-by');
 
       if (!booking || booking.student_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized' });
+      }
+
+      const presentation = assertBookingIsActionable(booking, 'This booking can no longer be updated.');
+
+      if (!presentation.canRespondToReschedule) {
+        return res.status(400).json({ error: 'No active reschedule proposal found.' });
       }
 
       if (booking.status !== 'RESCHEDULE_PROPOSED' || !booking.proposed_slot_id || !booking.proposed_slot) {
@@ -1184,8 +1335,11 @@ app.disable('x-powered-by');
           : 'Original time is no longer available. Please choose a new time.',
         status: originalSlotStillValid ? 'CONFIRMED' : 'NEEDS_RESCHEDULE',
       });
-    } catch (error) {
-      res.status(400).json({ error: (error as Error).message || 'Server error' });
+    } catch (error: any) {
+      if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(400).json({ error: error.message || 'Server error' });
     }
   });
 
@@ -1205,7 +1359,10 @@ app.disable('x-powered-by');
       res.cookie('adminToken', token, authCookieOptions);
 
       res.json({ message: 'Login successful', token, admin: { id: admin.id, email: admin.email } });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
+        return res.status(400).json({ error: error.message });
+      }
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1238,7 +1395,7 @@ app.disable('x-powered-by');
         },
         orderBy: { created_at: 'desc' },
       });
-      res.json(bookings);
+      res.json(bookings.map((booking) => withBookingPresentation(booking)));
     } catch (error) {
       console.error('Error fetching admin bookings:', error);
       res.status(500).json({ error: 'Server error' });
@@ -1255,7 +1412,6 @@ app.disable('x-powered-by');
     try {
       const records = await prisma.booking.findMany({
         where: {
-          status: 'CONFIRMED',
           slot: { is: { date: date as string } },
         },
         include: {
@@ -1283,7 +1439,7 @@ app.disable('x-powered-by');
         return first.student.name.localeCompare(second.student.name);
       });
 
-      res.json(records);
+      res.json(records.map((booking) => withBookingPresentation(booking)));
     } catch (error) {
       console.error('Error fetching daily records:', error);
       res.status(500).json({ error: 'Server error' });
@@ -1342,9 +1498,30 @@ app.disable('x-powered-by');
     const { status } = req.body;
 
     try {
-      const booking = await prisma.booking.findUnique({ where: { id } });
+      const booking = await prisma.booking.findUnique({
+        where: { id },
+        include: { slot: true },
+      });
       if (!booking) {
         return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      const presentation = assertBookingIsActionable(booking);
+
+      if (status === 'CONFIRMED' && !presentation.canAdminConfirm) {
+        return res.status(400).json({ error: 'This booking cannot be confirmed right now.' });
+      }
+
+      if (status === 'REJECTED' && !presentation.canAdminReject) {
+        return res.status(400).json({ error: 'This booking cannot be rejected right now.' });
+      }
+
+      if (status === 'NEEDS_RESCHEDULE' && !presentation.canAdminAskReschedule) {
+        return res.status(400).json({ error: 'This booking cannot be marked for reschedule right now.' });
+      }
+
+      if (status === 'CANCELLED' && !presentation.canAdminCancel) {
+        return res.status(400).json({ error: 'This booking cannot be cancelled right now.' });
       }
 
       await prisma.booking.update({
@@ -1375,6 +1552,12 @@ app.disable('x-powered-by');
         return res.status(404).json({ error: 'Booking not found' });
       }
 
+      const presentation = assertBookingIsActionable(booking);
+
+      if (!presentation.canAdminProposeSlot) {
+        return res.status(400).json({ error: 'This booking cannot be moved right now.' });
+      }
+
       if (new_slot_id === booking.slot_id) {
         return res.status(400).json({ error: 'Choose a different time to reschedule this booking' });
       }
@@ -1396,6 +1579,9 @@ app.disable('x-powered-by');
 
       res.json({ message: 'New time proposed successfully' });
     } catch (error: any) {
+      if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
+        return res.status(400).json({ error: error.message });
+      }
       res.status(400).json({ error: error.message || 'Server error' });
     }
   });
