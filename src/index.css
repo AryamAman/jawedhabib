@@ -62,11 +62,23 @@
   --status-rejected-text: #7d4139;
   --status-rejected-border: #d9b2ab;
 
-  --timeline-available: #c8dcc4;
-  --timeline-available-alt: #bdd5b9;
-  --timeline-booked: #c4b8a8;
+  --timeline-available: #bfd9bb;
+  --timeline-available-alt: #b0d0ac;
+  --timeline-booked: #c58d92;
   --timeline-unavailable: #e8e3dc;
-  --timeline-rescheduled: #d4c9a8;
+  --timeline-rescheduled: #b49ecb;
+  --timeline-available-pill-bg: rgba(191, 217, 187, 0.58);
+  --timeline-available-pill-border: rgba(109, 146, 104, 0.38);
+  --timeline-available-pill-text: #486244;
+  --timeline-booked-pill-bg: rgba(197, 141, 146, 0.6);
+  --timeline-booked-pill-border: rgba(143, 81, 87, 0.38);
+  --timeline-booked-pill-text: #6a3036;
+  --timeline-unavailable-pill-bg: rgba(232, 227, 220, 0.96);
+  --timeline-unavailable-pill-border: rgba(178, 167, 154, 0.36);
+  --timeline-unavailable-pill-text: #7a736b;
+  --timeline-rescheduled-pill-bg: rgba(180, 158, 203, 0.58);
+  --timeline-rescheduled-pill-border: rgba(122, 103, 150, 0.38);
+  --timeline-rescheduled-pill-text: #5c4b73;
   --timeline-selection-bg: #2a2a2a;
   --timeline-selection-border: rgba(191, 164, 106, 0.42);
   --timeline-selection-text: #f0ede8;
@@ -131,11 +143,23 @@
   --status-rejected-text: #dfb8b2;
   --status-rejected-border: rgba(177, 110, 103, 0.24);
 
-  --timeline-available: #4a5e48;
-  --timeline-available-alt: #546a52;
-  --timeline-booked: #6a5e54;
+  --timeline-available: #496647;
+  --timeline-available-alt: #537551;
+  --timeline-booked: #8b565d;
   --timeline-unavailable: #2b2824;
-  --timeline-rescheduled: #7b6f4f;
+  --timeline-rescheduled: #6f618c;
+  --timeline-available-pill-bg: rgba(73, 102, 71, 0.66);
+  --timeline-available-pill-border: rgba(154, 196, 145, 0.34);
+  --timeline-available-pill-text: #e1eddc;
+  --timeline-booked-pill-bg: rgba(139, 86, 93, 0.64);
+  --timeline-booked-pill-border: rgba(205, 141, 149, 0.32);
+  --timeline-booked-pill-text: #f3e3e5;
+  --timeline-unavailable-pill-bg: rgba(43, 40, 36, 0.96);
+  --timeline-unavailable-pill-border: rgba(118, 112, 103, 0.36);
+  --timeline-unavailable-pill-text: #c5beb4;
+  --timeline-rescheduled-pill-bg: rgba(111, 97, 140, 0.66);
+  --timeline-rescheduled-pill-border: rgba(181, 164, 214, 0.3);
+  --timeline-rescheduled-pill-text: #ece7f6;
   --timeline-selection-bg: #f0ede8;
   --timeline-selection-border: rgba(191, 164, 106, 0.38);
   --timeline-selection-text: #0c0c0c;
@@ -706,27 +730,27 @@ select:focus-visible {
 }
 
 .timeline-status--available {
-  background: rgba(200, 220, 196, 0.55);
-  border-color: rgba(124, 147, 114, 0.36);
-  color: #4d5e49;
+  background: var(--timeline-available-pill-bg);
+  border-color: var(--timeline-available-pill-border);
+  color: var(--timeline-available-pill-text);
 }
 
 .timeline-status--booked {
-  background: rgba(196, 184, 168, 0.55);
-  border-color: rgba(142, 123, 100, 0.34);
-  color: #5f5348;
+  background: var(--timeline-booked-pill-bg);
+  border-color: var(--timeline-booked-pill-border);
+  color: var(--timeline-booked-pill-text);
 }
 
 .timeline-status--unavailable {
-  background: rgba(232, 227, 220, 0.96);
-  border-color: rgba(178, 167, 154, 0.36);
-  color: #7a736b;
+  background: var(--timeline-unavailable-pill-bg);
+  border-color: var(--timeline-unavailable-pill-border);
+  color: var(--timeline-unavailable-pill-text);
 }
 
 .timeline-status--rescheduled {
-  background: rgba(212, 201, 168, 0.58);
-  border-color: rgba(191, 164, 106, 0.38);
-  color: #665b3e;
+  background: var(--timeline-rescheduled-pill-bg);
+  border-color: var(--timeline-rescheduled-pill-border);
+  color: var(--timeline-rescheduled-pill-text);
 }
 
 .timeline-cell--available {

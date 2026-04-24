@@ -712,7 +712,7 @@ export default function Book() {
                         <div className="space-y-3 text-sm text-[color:var(--text-muted-dark)]">
                           <p>Green starts are safe for the full appointment length you selected.</p>
                           <p>Drag the selected green bar to another green start time to reschedule quickly.</p>
-                          <p>Muted sage is available, mocha is booked, pale warm grey is unavailable, and warm amber marks rescheduled time.</p>
+                          <p>Green means available, refined red means already booked, pale neutral means unavailable, and premium purple marks rescheduled time.</p>
                         </div>
                       </div>
                     </div>

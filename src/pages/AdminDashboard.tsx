@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { addDays, format, parseISO, startOfToday } from 'date-fns';
 import { clsx } from 'clsx';
@@ -127,6 +127,8 @@ export default function AdminDashboard() {
   const [draggingBookingId, setDraggingBookingId] = useState<string>('');
   const [dropTargetSlotId, setDropTargetSlotId] = useState<string>('');
   const [hoveredTime, setHoveredTime] = useState<{ time: string; left: number } | null>(null);
+  const timelineStripRef = useRef<HTMLDivElement | null>(null);
+  const dragRangeRef = useRef<DragRange | null>(null);
   const [undoStack, setUndoStack] = useState<UndoAction[]>(() => {
     const savedStack = localStorage.getItem(UNDO_STORAGE_KEY);
 
@@ -290,26 +292,6 @@ export default function AdminDashboard() {
     localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(undoStack));
   }, [undoStack]);
 
-  useEffect(() => {
-    if (!dragRange || !schedule) {
-      return;
-    }
-
-    const handleMouseUp = () => {
-      const startMinutes = Math.min(timeToMinutes(dragRange.anchorTime), timeToMinutes(dragRange.currentTime));
-      const endMinutes = Math.max(timeToMinutes(dragRange.anchorTime), timeToMinutes(dragRange.currentTime)) + schedule.meta.stepMinutes;
-
-      setSelectedRange({
-        startTime: minutesToTime(startMinutes),
-        endTime: minutesToTime(endMinutes),
-      });
-      setDragRange(null);
-    };
-
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, [dragRange, schedule]);
-
   const currentScheduleBookings = schedule?.bookings ?? [];
   const currentScheduleSlots = schedule?.slots ?? [];
   const selectedDayStylist = stylists.find((stylist) => stylist.id === selectedStylist);
@@ -344,6 +326,85 @@ export default function AdminDashboard() {
       left: slotIndex * CELL_WIDTH,
     };
   };
+
+  const setDragSelection = (nextDragRange: DragRange | null) => {
+    dragRangeRef.current = nextDragRange;
+    setDragRange(nextDragRange);
+  };
+
+  const getTimelineHoverAtClientX = (clientX: number) => {
+    const boundsLeft = timelineStripRef.current?.getBoundingClientRect().left;
+
+    if (boundsLeft === undefined) {
+      return null;
+    }
+
+    return getHoverTimeFromClientX(clientX, boundsLeft);
+  };
+
+  const finalizeRangeSelection = (currentDragRange: DragRange, finalTime: string, stepMinutes: number) => {
+    const startMinutes = Math.min(timeToMinutes(currentDragRange.anchorTime), timeToMinutes(finalTime));
+    const endMinutes = Math.max(timeToMinutes(currentDragRange.anchorTime), timeToMinutes(finalTime)) + stepMinutes;
+
+    setSelectedRange({
+      startTime: minutesToTime(startMinutes),
+      endTime: minutesToTime(endMinutes),
+    });
+    setDragSelection(null);
+  };
+
+  useEffect(() => {
+    if (!dragRange || !schedule) {
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const currentDragRange = dragRangeRef.current;
+
+      if (!currentDragRange) {
+        return;
+      }
+
+      const nextHover = getTimelineHoverAtClientX(event.clientX);
+      if (nextHover) {
+        setHoveredTime(nextHover);
+      }
+
+      setDragSelection({
+        ...currentDragRange,
+        cursorX: event.clientX,
+        cursorY: event.clientY,
+        currentTime: nextHover?.time ?? currentDragRange.currentTime,
+      });
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+      const currentDragRange = dragRangeRef.current;
+
+      if (!currentDragRange) {
+        return;
+      }
+
+      const nextHover = getTimelineHoverAtClientX(event.clientX);
+      if (nextHover) {
+        setHoveredTime(nextHover);
+      }
+
+      finalizeRangeSelection(
+        currentDragRange,
+        nextHover?.time ?? currentDragRange.currentTime,
+        schedule.meta.stepMinutes,
+      );
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragRange, schedule]);
 
   const hourLabels = schedule
     ? Array.from({ length: Math.floor((timeToMinutes(schedule.meta.dayEnd) - timelineStartMinute) / 60) + 1 }).map((_, index) => {
@@ -999,7 +1060,7 @@ export default function AdminDashboard() {
                 <div>
                   <h3 className="section-heading mb-2 text-2xl font-serif">Schedule Controls</h3>
                   <p className="text-[color:var(--text-muted-dark)]">
-                    Press, hold, and drag anywhere on the strip to sweep-select time. Then mark the whole selection unavailable or reopen part of a yellow section back to available.
+                    Press, hold, and drag anywhere on the strip to sweep-select time. Then mark the whole selection unavailable or reopen part of a blocked section back to available.
                   </p>
                 </div>
 
@@ -1059,13 +1120,13 @@ export default function AdminDashboard() {
                   <div className="surface-card p-4">
                     <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--accent-gold)]">Sweep Selection</p>
                     <p className="text-sm text-[color:var(--text-muted-dark)]">
-                      Drag across any mix of green, yellow, red, or purple time to select that exact portion of the day.
+                      Drag across any mix of green, blocked, red, or purple time to select that exact portion of the day.
                     </p>
                   </div>
                   <div className="surface-card p-4">
                     <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--accent-gold)]">Reopen Time</p>
                     <p className="text-sm text-[color:var(--text-muted-dark)]">
-                      If part of the strip is already yellow, drag just that portion and use <span className="font-medium">Mark Available</span>.
+                      If part of the strip is already blocked, drag just that portion and use <span className="font-medium">Mark Available</span>.
                     </p>
                   </div>
                   <div className="surface-card p-4">
@@ -1121,18 +1182,11 @@ export default function AdminDashboard() {
                         <div
                       className="relative overflow-visible rounded-[28px] border border-[color:var(--border-light)] bg-[color:var(--surface-card-muted)] px-2 py-2 shadow-inner"
                       style={{ width: timelineWidth + 16, minHeight: 118 }}
+                      ref={timelineStripRef}
                       onMouseMove={(event) => {
                         const nextHover = getHoverTimeFromClientX(event.clientX, event.currentTarget.getBoundingClientRect().left);
                         if (nextHover) {
                           setHoveredTime(nextHover);
-                        }
-                        if (dragRange) {
-                          setDragRange((current) => current ? {
-                            ...current,
-                            cursorX: event.clientX,
-                            cursorY: event.clientY,
-                            currentTime: nextHover?.time ?? current.currentTime,
-                          } : null);
                         }
                       }}
                       onMouseLeave={() => setHoveredTime(null)}
@@ -1167,12 +1221,6 @@ export default function AdminDashboard() {
                               }}
                               onMouseEnter={() => {
                                 setHoveredTime({ time: slot.time, left: getTimelineLeft(slot.time) });
-                                if (dragRange) {
-                                  setDragRange((current) => current ? {
-                                    ...current,
-                                    currentTime: slot.time,
-                                  } : null);
-                                }
                               }}
                               onMouseMove={() => setHoveredTime({ time: slot.time, left: getTimelineLeft(slot.time) })}
                               onMouseDown={(event) => {
@@ -1180,7 +1228,7 @@ export default function AdminDashboard() {
                                 setFocusedSlotId(slot.id);
                                 setFocusedBookingId('');
                                 setSelectedRange(null);
-                                setDragRange({
+                                setDragSelection({
                                   anchorTime: slot.time,
                                   currentTime: slot.time,
                                   cursorX: event.clientX,
@@ -1421,7 +1469,7 @@ export default function AdminDashboard() {
                             type="button"
                             onClick={() => {
                               setSelectedRange(null);
-                              setDragRange(null);
+                              setDragSelection(null);
                             }}
                             className="editorial-btn editorial-btn-subtle px-4 py-3"
                           >
@@ -1432,7 +1480,7 @@ export default function AdminDashboard() {
                     ) : (
                       <div className="space-y-3 text-sm text-[color:var(--text-muted-dark)]">
                         <p>Press, hold, and drag anywhere on the strip to sweep-select a time range.</p>
-                        <p>You can sweep across yellow time too, then mark just that portion available again.</p>
+                        <p>You can sweep across blocked time too, then mark just that portion available again.</p>
                         <p>Dragging a booking block to a green slot sends a reschedule proposal to the student.</p>
                       </div>
                     )}
