@@ -236,8 +236,19 @@ select:focus-visible {
 }
 
 .page-shell {
+  position: relative;
   background: var(--page-bg);
   color: var(--text-dark);
+}
+
+.page-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top center, rgba(191, 164, 106, 0.05), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 24%);
 }
 
 .section-light {
@@ -297,14 +308,18 @@ select:focus-visible {
   background: var(--surface-elevated);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .surface-card-muted {
   background: var(--surface-card-muted);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .surface-card-hover:hover {
@@ -402,6 +417,7 @@ select:focus-visible {
     color 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
+  box-shadow: 0 10px 26px rgba(12, 12, 12, 0.08);
 }
 
 .editorial-btn:hover {
@@ -433,6 +449,7 @@ select:focus-visible {
 .editorial-btn-outline:hover {
   background: var(--accent-gold);
   color: #0c0c0c;
+  box-shadow: 0 14px 30px rgba(191, 164, 106, 0.18);
 }
 
 .editorial-btn-subtle {
@@ -465,6 +482,7 @@ select:focus-visible {
 .editorial-btn-light:hover {
   background: var(--text-primary);
   color: #0c0c0c;
+  box-shadow: 0 16px 34px rgba(240, 237, 232, 0.18);
 }
 
 .editorial-input {
@@ -504,7 +522,7 @@ select:focus-visible {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 2rem;
+  padding: 2.4rem;
 }
 
 .auth-subtitle {
@@ -518,7 +536,10 @@ select:focus-visible {
 .auth-layout {
   display: grid;
   gap: 1.5rem;
-  align-items: start;
+  align-items: center;
+  justify-content: center;
+  max-width: 58rem;
+  margin: 0 auto;
 }
 
 .auth-message-panel {
@@ -526,11 +547,13 @@ select:focus-visible {
   flex-direction: column;
   justify-content: center;
   min-height: 100%;
-  padding: 2rem 1.75rem;
+  padding: 2.4rem 2rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-card-muted) 92%, transparent);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .auth-message-panel .editorial-divider {
@@ -544,8 +567,8 @@ select:focus-visible {
 
 @media (min-width: 1024px) {
   .auth-layout {
-    grid-template-columns: minmax(0, 560px) minmax(280px, 360px);
-    gap: 2rem;
+    grid-template-columns: minmax(0, 520px) minmax(280px, 340px);
+    gap: 2.5rem;
   }
 
   .auth-message-panel {
@@ -588,8 +611,18 @@ select:focus-visible {
 }
 
 .hero-sub {
-  color: var(--accent-gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid rgba(191, 164, 106, 0.28);
+  border-radius: 999px;
+  background: rgba(12, 12, 12, 0.26);
+  backdrop-filter: blur(8px);
+  color: color-mix(in srgb, var(--accent-gold) 78%, var(--text-primary) 22%);
   letter-spacing: 0.25em;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   animation: fadeRise 0.8s ease forwards;
   animation-delay: 0.45s;
   opacity: 0;
@@ -627,6 +660,7 @@ select:focus-visible {
   background: var(--nav-bg-scrolled);
   backdrop-filter: blur(20px);
   border-bottom-color: var(--nav-border);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
 }
 
 .brand-link {
@@ -659,6 +693,7 @@ select:focus-visible {
 .nav-cta:hover {
   background: var(--accent-gold);
   color: #0c0c0c;
+  box-shadow: 0 12px 28px rgba(191, 164, 106, 0.18);
 }
 
 .theme-toggle {
@@ -678,6 +713,7 @@ select:focus-visible {
   background: var(--accent-gold);
   color: #0c0c0c;
   border-color: var(--accent-gold);
+  box-shadow: 0 12px 28px rgba(191, 164, 106, 0.16);
 }
 
 .nav-mobile-panel {
@@ -806,7 +842,9 @@ select:focus-visible {
   border: 1px solid var(--border-light);
   border-left: 3px solid var(--card-accent, var(--accent-gold));
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .booking-card--confirmed,
@@ -887,6 +925,7 @@ select:focus-visible {
   background: var(--surface-card-muted);
   color: var(--text-muted-dark);
   text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .empty-state-icon {

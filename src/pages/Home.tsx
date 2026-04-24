@@ -33,7 +33,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="hero-sub mb-10 text-base md:text-lg"
+            className="hero-sub mb-10 text-sm font-medium md:text-lg"
           >
             Exclusive to BITS Pilani
           </motion.p>

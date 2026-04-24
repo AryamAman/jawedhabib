@@ -58,7 +58,7 @@ export default function Login() {
 
   return (
     <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
-      <div className="mx-auto max-w-6xl px-4 py-24 lg:py-32">
+      <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-6xl items-center px-4 py-16 lg:py-20">
         <div className="auth-layout">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
