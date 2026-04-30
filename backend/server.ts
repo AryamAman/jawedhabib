@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import path from 'path';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import {
   DAY_END_TIME,
@@ -29,7 +30,7 @@ const globalForPrisma = globalThis as unknown as {
 const prisma = globalForPrisma.prisma ?? new PrismaClient();
 globalForPrisma.prisma = prisma;
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 const PORT = Number(process.env.PORT || 3000);
 
 const requireProductionEnv = (name: string) => {
@@ -67,7 +68,7 @@ const GOOGLE_CALLBACK_PATH = process.env.GOOGLE_CALLBACK_PATH || '/api/auth/call
 const LEGACY_GOOGLE_CALLBACK_PATH = '/api/auth/google/callback';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${APP_URL}${GOOGLE_CALLBACK_PATH}`;
 const POST_MESSAGE_TARGET_ORIGIN = APP_URL;
-const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? requireProductionEnv('JWT_SECRET') : 'super-secret-jwt-key-for-bits-pilani');
+const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? requireProductionEnv('JWT_SECRET') : 'local-development-jwt-secret-change-me');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
@@ -79,14 +80,30 @@ const ADMIN_BOOTSTRAP_EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerC
 const ADMIN_BOOTSTRAP_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';
 const SEED_SECRET = process.env.SEED_SECRET || '';
 const SHOULD_AUTO_BOOTSTRAP = !isProduction || process.env.AUTO_BOOTSTRAP_ON_REQUEST === 'true';
+const ENABLE_ADMIN_PASSWORD_LOGIN = process.env.ENABLE_ADMIN_PASSWORD_LOGIN === 'true';
 const PUBLIC_CACHE_TTL_SECONDS = 60 * 5;
 const PUBLIC_CACHE_TTL_MS = PUBLIC_CACHE_TTL_SECONDS * 1000;
+const OAUTH_STATE_COOKIE = 'oauthState';
+const ALLOWED_OAUTH_FLOWS = new Set(['student_signup', 'student_login', 'admin']);
+const ALLOWED_BOOKING_STATUSES = new Set([
+  'PENDING',
+  'CONFIRMED',
+  'NEEDS_RESCHEDULE',
+  'RESCHEDULE_PENDING',
+  'RESCHEDULE_PROPOSED',
+  'CANCELLED',
+  'REJECTED',
+]);
 const authCookieOptions = {
   httpOnly: true,
   secure: isProduction,
   sameSite: 'lax' as const,
   path: '/',
   maxAge: 1000 * 60 * 60 * 24 * 7,
+};
+const oauthStateCookieOptions = {
+  ...authCookieOptions,
+  maxAge: 1000 * 60 * 10,
 };
 const INTERACTIVE_TRANSACTION_OPTIONS = {
   maxWait: 10_000,
@@ -97,6 +114,116 @@ type PublicCacheKey = 'services' | 'stylists';
 
 const publicDataCache = new Map<PublicCacheKey, { expiresAt: number; value: unknown }>();
 const PROFILE_COMPLETION_ERROR = 'Please complete your profile with a valid phone number before continuing.';
+
+if (isProduction && JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters in production');
+}
+
+const logServerError = (label: string, error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: unknown }).code) : undefined;
+
+  console.error(label, {
+    message,
+    ...(code ? { code } : {}),
+  });
+};
+
+type OAuthFlow = 'student_signup' | 'student_login' | 'admin';
+
+const signValue = (value: string) => (
+  createHmac('sha256', JWT_SECRET).update(value).digest('base64url')
+);
+
+const createOAuthState = (flow: OAuthFlow) => {
+  const payload = Buffer.from(JSON.stringify({
+    flow,
+    nonce: randomBytes(16).toString('base64url'),
+    createdAt: Date.now(),
+  })).toString('base64url');
+
+  return `${payload}.${signValue(payload)}`;
+};
+
+const verifyOAuthState = (state: unknown, expectedState: unknown): OAuthFlow | null => {
+  if (typeof state !== 'string' || typeof expectedState !== 'string' || state !== expectedState) {
+    return null;
+  }
+
+  const [payload, signature] = state.split('.');
+  if (!payload || !signature) {
+    return null;
+  }
+
+  const expectedSignature = signValue(payload);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  if (signatureBuffer.length !== expectedBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      flow?: string;
+      createdAt?: number;
+    };
+
+    if (!parsed.flow || !ALLOWED_OAUTH_FLOWS.has(parsed.flow) || typeof parsed.createdAt !== 'number') {
+      return null;
+    }
+
+    if (Date.now() - parsed.createdAt > oauthStateCookieOptions.maxAge) {
+      return null;
+    }
+
+    return parsed.flow as OAuthFlow;
+  } catch {
+    return null;
+  }
+};
+
+const rateLimitBuckets = new Map<string, { resetAt: number; count: number }>();
+
+const createRateLimiter = ({
+  keyPrefix,
+  windowMs,
+  max,
+}: {
+  keyPrefix: string;
+  windowMs: number;
+  max: number;
+}) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const now = Date.now();
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const key = `${keyPrefix}:${ip}`;
+  const bucket = rateLimitBuckets.get(key);
+
+  if (!bucket || bucket.resetAt <= now) {
+    rateLimitBuckets.set(key, { resetAt: now + windowMs, count: 1 });
+    next();
+    return;
+  }
+
+  bucket.count += 1;
+
+  if (bucket.count > max) {
+    res.setHeader('Retry-After', String(Math.ceil((bucket.resetAt - now) / 1000)));
+    res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+    return;
+  }
+
+  next();
+};
+
+const escapeHtml = (value: string) => (
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+);
 
 const clearPublicDataCache = () => {
   publicDataCache.clear();
@@ -131,14 +258,42 @@ app.disable('x-powered-by');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ].join('; '),
+    );
     next();
+  });
+  app.use('/api/auth/google/url', createRateLimiter({ keyPrefix: 'oauth-url', windowMs: 10 * 60 * 1000, max: 20 }));
+  app.use('/api/auth/callback/google', createRateLimiter({ keyPrefix: 'oauth-callback', windowMs: 10 * 60 * 1000, max: 30 }));
+  app.use('/api/auth/google/callback', createRateLimiter({ keyPrefix: 'oauth-callback-legacy', windowMs: 10 * 60 * 1000, max: 30 }));
+  app.use('/api/admin/login', createRateLimiter({ keyPrefix: 'admin-login', windowMs: 15 * 60 * 1000, max: 5 }));
+  app.use('/api/student/profile', createRateLimiter({ keyPrefix: 'student-profile', windowMs: 10 * 60 * 1000, max: 30 }));
+  app.use('/api/book', createRateLimiter({ keyPrefix: 'student-book', windowMs: 10 * 60 * 1000, max: 20 }));
+  app.use('/api/admin', (req, res, next) => {
+    if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+      next();
+      return;
+    }
+
+    createRateLimiter({ keyPrefix: 'admin-mutation', windowMs: 10 * 60 * 1000, max: 120 })(req, res, next);
   });
   app.use('/api', async (_req, res, next) => {
     try {
       await ensureAppReady();
       next();
     } catch (error) {
-      console.error('Runtime bootstrap failed:', error);
+      logServerError('Runtime bootstrap failed', error);
       res.status(500).json({ error: 'Server initialization failed' });
     }
   });
@@ -147,11 +302,11 @@ app.disable('x-powered-by');
 
   // Auth Middleware
   const authenticate = (req: any, res: any, next: any) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader ? authHeader.split(' ')[1] : req.cookies.token;
+    const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+      if (decoded.role !== 'student') return res.status(403).json({ error: 'Forbidden' });
       req.user = decoded;
       next();
     } catch (err) {
@@ -160,8 +315,7 @@ app.disable('x-powered-by');
   };
 
   const authenticateAdmin = (req: any, res: any, next: any) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader ? authHeader.split(' ')[1] : req.cookies.adminToken;
+    const token = req.cookies.adminToken;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
@@ -377,7 +531,7 @@ app.disable('x-powered-by');
           window.location.href = ${JSON.stringify(fallbackPath)};
         }
       </script>
-      <p>${message}</p>
+      <p>${escapeHtml(message)}</p>
     </body></html>
   `;
 
@@ -412,29 +566,44 @@ app.disable('x-powered-by');
       return res.status(503).json({ error: 'Google sign-in is not configured yet' });
     }
 
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
-    const url = client.generateAuthUrl({
-      access_type: 'offline',
-      scope: ['email', 'profile'],
-      prompt: 'consent',
-      state: flow as string || 'student',
-    });
-    res.json({ url });
-  });
-
-  app.get([GOOGLE_CALLBACK_PATH, LEGACY_GOOGLE_CALLBACK_PATH], async (req, res) => {
-    const { code } = req.query;
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-      return res.status(503).send('Google sign-in is not configured yet');
+    if (typeof flow !== 'string' || !ALLOWED_OAUTH_FLOWS.has(flow)) {
+      return res.status(400).json({ error: 'Unknown authentication flow' });
     }
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
+
+    const state = createOAuthState(flow as OAuthFlow);
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
+    const url = client.generateAuthUrl({
+      scope: ['email', 'profile'],
+      state,
+    });
+    res.cookie(OAUTH_STATE_COOKIE, state, oauthStateCookieOptions);
+    res.json({ url });
+  });
+
+  app.get([GOOGLE_CALLBACK_PATH, LEGACY_GOOGLE_CALLBACK_PATH], async (req, res) => {
+    const { code, state } = req.query;
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      return res.status(503).send('Google sign-in is not configured yet');
+    }
+
+    if (typeof code !== 'string') {
+      return res.send(buildPopupErrorResponse('Missing Google authorization code.'));
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    const flow = verifyOAuthState(state, req.cookies[OAUTH_STATE_COOKIE]);
+    res.clearCookie(OAUTH_STATE_COOKIE, oauthStateCookieOptions);
+
+    if (!flow) {
+      return res.send(buildPopupErrorResponse('Authentication request expired. Please try again.'));
+    }
 
     const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
     
@@ -449,10 +618,13 @@ app.disable('x-powered-by');
       const email = payload?.email?.toLowerCase();
       const name = payload?.name || 'Google User';
       const googleId = payload?.sub;
-      const flow = (req.query.state as string) || 'student_login';
 
-      if (!email) {
+      if (!email || !googleId) {
         return res.send(buildPopupErrorResponse('No email provided by Google.'));
+      }
+
+      if (payload?.email_verified !== true) {
+        return res.send(buildPopupErrorResponse('Google email must be verified before signing in.'));
       }
 
       let role = 'student';
@@ -467,9 +639,10 @@ app.disable('x-powered-by');
           }
           role = 'admin';
           const adminToken = jwt.sign({ id: admin.id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+          res.clearCookie('token', authCookieOptions);
           res.cookie('adminToken', adminToken, authCookieOptions);
           res.send(buildPopupResponse(
-            { type: 'OAUTH_AUTH_SUCCESS', token: adminToken, role },
+            { type: 'OAUTH_AUTH_SUCCESS', role },
             '/admin',
             'Authentication successful. This window should close automatically.',
           ));
@@ -484,7 +657,7 @@ app.disable('x-powered-by');
       }
 
       const isStudentSignup = flow === 'student_signup';
-      const isStudentLogin = flow === 'student_login' || flow === 'student';
+      const isStudentLogin = flow === 'student_login';
 
       let student = await prisma.student.findUnique({ where: { email } });
 
@@ -531,6 +704,7 @@ app.disable('x-powered-by');
       }
 
       const token = jwt.sign({ id: student.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
+      res.clearCookie('adminToken', authCookieOptions);
       res.cookie('token', token, authCookieOptions);
 
       const formattedStudent = formatStudentProfile(student);
@@ -538,7 +712,6 @@ app.disable('x-powered-by');
       res.send(buildPopupResponse(
         {
           type: 'OAUTH_AUTH_SUCCESS',
-          token,
           role,
           profileCompleted: formattedStudent.profileCompleted,
         },
@@ -546,7 +719,7 @@ app.disable('x-powered-by');
         'Authentication successful. This window should close automatically.',
       ));
     } catch (error) {
-      console.error('Google OAuth error:', error);
+      logServerError('Google OAuth error', error);
       res.send(`
         <html><body>
           <script>
@@ -637,7 +810,7 @@ app.disable('x-powered-by');
         return res.status(409).json({ error: 'Phone number already registered' });
       }
 
-      console.error('Profile update error:', error);
+      logServerError('Profile update error', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -690,7 +863,7 @@ app.disable('x-powered-by');
           throw error;
         }
 
-        console.warn(`Retrying transaction after transient failure (attempt ${attempt}/${maxAttempts})`);
+        console.warn('Retrying transaction after transient failure', { attempt, maxAttempts });
         await wait(attempt * 200);
       }
     }
@@ -900,14 +1073,6 @@ app.disable('x-powered-by');
           },
         });
       }
-    } else if (!isProduction && (await prisma.admin.count()) === 0) {
-      const password_hash = await bcrypt.hash('admin123', 10);
-      await prisma.admin.create({
-        data: {
-          email: 'admin@example.com',
-          password_hash,
-        },
-      });
     }
 
     const existingServices = await prisma.service.findMany();
@@ -1087,7 +1252,7 @@ app.disable('x-powered-by');
       const schedule = await getSchedulePayload(date as string, stylist_id as string, false);
       res.json(schedule);
     } catch (error) {
-      console.error('Error loading public schedule:', error);
+      logServerError('Error loading public schedule', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1148,7 +1313,7 @@ app.disable('x-powered-by');
       if (error?.name === 'NOT_FOUND') {
         return res.status(404).json({ error: error.message });
       }
-      console.error('Booking error:', error);
+      logServerError('Booking error', error);
       res.status(400).json({ error: error.message || 'Booking failed' });
     }
   });
@@ -1345,6 +1510,10 @@ app.disable('x-powered-by');
 
   // Admin Routes
   app.post('/api/admin/login', async (req, res) => {
+    if (!ENABLE_ADMIN_PASSWORD_LOGIN) {
+      return res.status(404).json({ error: 'Admin password login is disabled' });
+    }
+
     let { email, password } = req.body;
     email = email?.trim().toLowerCase();
 
@@ -1356,9 +1525,10 @@ app.disable('x-powered-by');
       if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
       const token = jwt.sign({ id: admin.id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+      res.clearCookie('token', authCookieOptions);
       res.cookie('adminToken', token, authCookieOptions);
 
-      res.json({ message: 'Login successful', token, admin: { id: admin.id, email: admin.email } });
+      res.json({ message: 'Login successful', admin: { id: admin.id, email: admin.email } });
     } catch (error: any) {
       if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
         return res.status(400).json({ error: error.message });
@@ -1378,7 +1548,7 @@ app.disable('x-powered-by');
       const schedule = await getSchedulePayload(date as string, stylist_id as string, true);
       res.json(schedule);
     } catch (error) {
-      console.error('Error loading admin schedule:', error);
+      logServerError('Error loading admin schedule', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1397,7 +1567,7 @@ app.disable('x-powered-by');
       });
       res.json(bookings.map((booking) => withBookingPresentation(booking)));
     } catch (error) {
-      console.error('Error fetching admin bookings:', error);
+      logServerError('Error fetching admin bookings', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1441,7 +1611,7 @@ app.disable('x-powered-by');
 
       res.json(records.map((booking) => withBookingPresentation(booking)));
     } catch (error) {
-      console.error('Error fetching daily records:', error);
+      logServerError('Error fetching daily records', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1463,6 +1633,22 @@ app.disable('x-powered-by');
         status: string;
       }>;
     };
+
+    const validBookingUpdates = booking_updates.every((bookingUpdate) => (
+      typeof bookingUpdate.id === 'string' &&
+      typeof bookingUpdate.slot_id === 'string' &&
+      typeof bookingUpdate.stylist_id === 'string' &&
+      ALLOWED_BOOKING_STATUSES.has(bookingUpdate.status) &&
+      (bookingUpdate.proposed_slot_id === undefined || bookingUpdate.proposed_slot_id === null || typeof bookingUpdate.proposed_slot_id === 'string')
+    ));
+    const validSlotUpdates = slot_updates.every((slotUpdate) => (
+      typeof slotUpdate.id === 'string' &&
+      ['AVAILABLE', 'UNAVAILABLE'].includes(slotUpdate.status)
+    ));
+
+    if (!validBookingUpdates || !validSlotUpdates) {
+      return res.status(400).json({ error: 'Invalid undo payload' });
+    }
 
     try {
       await runInteractiveTransaction(async (tx) => {
@@ -1488,7 +1674,7 @@ app.disable('x-powered-by');
 
       res.json({ message: 'Action undone successfully' });
     } catch (error) {
-      console.error('Error undoing admin action:', error);
+      logServerError('Error undoing admin action', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1496,6 +1682,10 @@ app.disable('x-powered-by');
   app.put('/api/admin/bookings/:id/status', authenticateAdmin, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
+
+    if (typeof status !== 'string' || !ALLOWED_BOOKING_STATUSES.has(status)) {
+      return res.status(400).json({ error: 'Invalid booking status' });
+    }
 
     try {
       const booking = await prisma.booking.findUnique({
@@ -1676,7 +1866,7 @@ app.disable('x-powered-by');
       clearPublicDataCache();
       res.json({ message: 'Database seeded' });
     } catch (error) {
-      console.error('Manual seed failed:', error);
+      logServerError('Manual seed failed', error);
       res.status(500).json({ error: 'Server error' });
     }
   });
@@ -1699,13 +1889,13 @@ app.disable('x-powered-by');
     }
 
     app.listen(PORT, '0.0.0.0', async () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log('Server running', { port: PORT });
 
       try {
         await ensureAppReady(true);
         await seedTimelineSlots();
       } catch (err) {
-        console.error('Auto-seeding failed:', err);
+        logServerError('Auto-seeding failed', err);
       }
     });
 }

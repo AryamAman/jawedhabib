@@ -6,13 +6,12 @@ import ThemeToggle from './ThemeToggle';
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [authRole, setAuthRole] = useState<'student' | 'admin' | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Basic auth check (in a real app, use context)
-  const isLoggedIn = !!localStorage.getItem('token');
-  const isAdminLoggedIn = !!localStorage.getItem('adminToken');
   const isHome = location.pathname === '/';
+  const isLoggedIn = authRole === 'student';
+  const isAdminLoggedIn = authRole === 'admin';
 
   useEffect(() => {
     const updateScrolledState = () => {
@@ -29,10 +28,49 @@ export default function Navbar() {
     setIsOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAuthState = async () => {
+      try {
+        const adminResponse = await fetch('/api/admin/me', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+
+        if (!cancelled && adminResponse.ok) {
+          setAuthRole('admin');
+          return;
+        }
+
+        const studentResponse = await fetch('/api/auth/me', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+
+        if (!cancelled) {
+          setAuthRole(studentResponse.ok ? 'student' : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthRole(null);
+        }
+      }
+    };
+
+    loadAuthState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname]);
+
   const handleLogout = async () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('adminToken');
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    setAuthRole(null);
     navigate('/');
     window.location.reload();
   };

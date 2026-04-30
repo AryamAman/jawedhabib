@@ -70,7 +70,6 @@ export default function Book() {
   const location = useLocation();
   const rescheduleState = (location.state as RescheduleState | null) ?? null;
   const isRescheduling = Boolean(rescheduleState?.rescheduleBookingId);
-  const isLoggedIn = Boolean(localStorage.getItem('token'));
   const [authReady, setAuthReady] = useState(false);
 
   const bookingDuration = selectedServices.reduce((total, id) => {
@@ -81,16 +80,9 @@ export default function Book() {
   const dates = Array.from({ length: 7 }).map((_, index) => addDays(startOfToday(), index));
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      toast.error('Please login to book an appointment');
-      navigate('/login');
-      return;
-    }
-
-    const token = localStorage.getItem('token');
-
     fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -151,14 +143,13 @@ export default function Book() {
       .catch((error) => {
         if (error instanceof Error && error.message === 'Unauthorized') {
           toast.error('Please login to continue');
-          localStorage.removeItem('token');
           navigate('/login');
           return;
         }
 
         toast.error(error instanceof Error ? error.message : 'Unable to load booking details');
       });
-  }, [isLoggedIn, navigate, rescheduleState]);
+  }, [navigate, rescheduleState]);
 
   useEffect(() => {
     if (!authReady || !selectedStylist) {
@@ -184,7 +175,6 @@ export default function Book() {
         setFocusedSlotId((current) => current || data.slots[0]?.id || '');
       })
       .catch((error) => {
-        console.error(error);
         toast.error('Unable to load the day timeline');
       })
       .finally(() => setLoadingSchedule(false));
@@ -229,8 +219,8 @@ export default function Book() {
         method: isRescheduling ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify(isRescheduling ? {
           new_slot_id: selectedSlot,
         } : {

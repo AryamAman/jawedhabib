@@ -11,3 +11,8 @@ coverage/
 *.db
 *.db-journal
 /src/generated/prisma
+.next/
+new-nextjs-app/
+outputs/
+tmp_analysis/
+tsconfig.tsbuildinfo

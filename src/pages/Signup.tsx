@@ -25,7 +25,6 @@ export default function Signup() {
         toast.error('Please allow popups for this site to connect your account.');
       }
     } catch (error) {
-      console.error('OAuth error:', error);
       toast.error('Failed to initiate Google sign-up');
     }
   };
@@ -37,7 +36,6 @@ export default function Signup() {
       }
 
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        localStorage.setItem('token', event.data.token);
         toast.success('Google verification complete');
         window.location.href = getStudentRedirectPath(event.data.profileCompleted);
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {

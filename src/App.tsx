@@ -23,6 +23,11 @@ function AppFrame() {
   const location = useLocation();
 
   useEffect(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('adminToken');
+  }, []);
+
+  useEffect(() => {
     const cards = Array.from(document.querySelectorAll<HTMLElement>('.reveal-card'));
     if (!cards.length) {
       return;

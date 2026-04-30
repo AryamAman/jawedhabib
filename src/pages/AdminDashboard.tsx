@@ -139,15 +139,13 @@ export default function AdminDashboard() {
     try {
       const parsed = JSON.parse(savedStack) as UndoAction[];
       return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      console.error('Failed to parse saved undo stack:', error);
+    } catch {
       localStorage.removeItem(UNDO_STORAGE_KEY);
       return [];
     }
   });
 
   const navigate = useNavigate();
-  const token = localStorage.getItem('adminToken');
 
   const dates = Array.from({ length: 14 }).map((_, index) => addDays(startOfToday(), index));
   const selectedDateString = format(selectedDate, 'yyyy-MM-dd');
@@ -155,13 +153,10 @@ export default function AdminDashboard() {
   const isSelectedDatePast = selectedDateString < todayInIndia;
 
   const fetchBookings = async () => {
-    if (!token) {
-      return;
-    }
-
     try {
       const res = await fetch('/api/admin/bookings', {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -175,14 +170,13 @@ export default function AdminDashboard() {
 
       const data = await res.json();
       setBookings(data);
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error('Failed to load bookings');
     }
   };
 
   const fetchSchedule = async () => {
-    if (!token || !selectedStylist) {
+    if (!selectedStylist) {
       return;
     }
 
@@ -191,7 +185,8 @@ export default function AdminDashboard() {
 
     try {
       const res = await fetch(`/api/admin/schedule?stylist_id=${selectedStylist}&date=${dateString}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -210,8 +205,7 @@ export default function AdminDashboard() {
       const data: ScheduleResponse = await res.json();
       setSchedule(data);
       setFocusedSlotId((current) => current || data.slots[0]?.id || '');
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error('Failed to load day timeline');
     } finally {
       setLoadingSchedule(false);
@@ -219,16 +213,13 @@ export default function AdminDashboard() {
   };
 
   const fetchDailyRecords = async () => {
-    if (!token) {
-      return;
-    }
-
     const dateString = selectedDateString;
     setLoadingRecords(true);
 
     try {
       const res = await fetch(`/api/admin/records?date=${dateString}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -242,8 +233,7 @@ export default function AdminDashboard() {
 
       const data = await res.json();
       setDailyRecords(data);
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error('Failed to load daily records');
     } finally {
       setLoadingRecords(false);
@@ -251,15 +241,17 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (!token) {
-      navigate('/admin/login');
-      return;
-    }
-
     fetch('/api/admin/me', {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Unauthorized');
+        }
+
+        return res.json();
+      })
       .then((data) => setAdmin(data.admin))
       .catch(() => navigate('/admin/login'));
 
@@ -274,7 +266,7 @@ export default function AdminDashboard() {
       .catch(() => toast.error('Failed to load stylists'));
 
     fetchBookings();
-  }, [navigate, token]);
+  }, [navigate]);
 
   useEffect(() => {
     if (selectedStylist) {
@@ -528,8 +520,8 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
           booking_updates: latestAction.bookingUpdates,
           slot_updates: latestAction.slotUpdates,
@@ -561,8 +553,8 @@ export default function AdminDashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ status }),
       });
 
@@ -609,8 +601,8 @@ export default function AdminDashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ new_slot_id: slotId }),
       });
 
@@ -653,8 +645,8 @@ export default function AdminDashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
           date: format(selectedDate, 'yyyy-MM-dd'),
           stylist_id: selectedStylist,
@@ -699,8 +691,8 @@ export default function AdminDashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
           date: format(selectedDate, 'yyyy-MM-dd'),
           stylist_id: selectedStylist,
@@ -888,8 +880,12 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    window.location.href = '/admin/login';
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    }).finally(() => {
+      window.location.href = '/admin/login';
+    });
   };
 
   return (

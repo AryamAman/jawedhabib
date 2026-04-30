@@ -110,7 +110,8 @@ export default function Dashboard() {
 
   const fetchBookings = () => {
     fetch('/api/student/bookings', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
       .then((res) => res.json())
       .then((data) => setBookings(Array.isArray(data) ? data : []));
@@ -118,7 +119,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
       .then((res) => {
         if (!res.ok) {
@@ -144,7 +146,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/student/cancel/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        credentials: 'same-origin',
       });
 
       const data = await res.json().catch(() => ({}));
@@ -166,8 +168,8 @@ export default function Dashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ accept }),
       });
 
@@ -198,8 +200,12 @@ export default function Dashboard() {
     .sort(compareBookings);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    window.location.href = '/login';
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    }).finally(() => {
+      window.location.href = '/login';
+    });
   };
 
   return (

@@ -22,15 +22,9 @@ export default function Profile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
     fetch('/api/student/profile', {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -46,7 +40,6 @@ export default function Profile() {
       })
       .catch(() => {
         toast.error('Please sign in again');
-        localStorage.removeItem('token');
         navigate('/login');
       })
       .finally(() => setLoading(false));
@@ -71,8 +64,8 @@ export default function Profile() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
           name: name.trim(),
           phone: phone.trim(),

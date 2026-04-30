@@ -2,8 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
-const bootstrapAdminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || 'admin@example.com';
-const bootstrapAdminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || 'admin123';
+const bootstrapAdminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || '';
+const bootstrapAdminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';
 
 const timelineSteps = Array.from({ length: 120 }, (_, index) => {
   const totalMinutes = (10 * 60) + (index * 5);
@@ -13,7 +13,7 @@ const timelineSteps = Array.from({ length: 120 }, (_, index) => {
 });
 
 async function seed() {
-  if ((await prisma.admin.count()) === 0) {
+  if (bootstrapAdminEmail && bootstrapAdminPassword && (await prisma.admin.count()) === 0) {
     const password_hash = await bcrypt.hash(bootstrapAdminPassword, 10);
     await prisma.admin.create({
       data: {
@@ -75,5 +75,7 @@ async function seed() {
 }
 
 seed()
-  .catch(console.error)
+  .catch((error) => {
+    console.error('Database seed failed', error instanceof Error ? { message: error.message } : { message: String(error) });
+  })
   .finally(() => prisma.$disconnect());

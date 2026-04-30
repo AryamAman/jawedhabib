@@ -25,7 +25,6 @@ export default function Login() {
         toast.error('Please allow popups for this site to connect your account.');
       }
     } catch (error) {
-      console.error('OAuth error:', error);
       toast.error('Failed to initiate Google login');
     }
   };
@@ -38,13 +37,11 @@ export default function Login() {
 
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         if (event.data.role === 'admin') {
-          localStorage.setItem('adminToken', event.data.token);
           toast.success('Admin login successful');
           window.location.href = '/admin';
           return;
         }
 
-        localStorage.setItem('token', event.data.token);
         toast.success('Login successful');
         window.location.href = getStudentRedirectPath(event.data.profileCompleted);
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {

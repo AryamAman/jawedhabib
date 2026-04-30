@@ -7,7 +7,7 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
 - Frontend: React, Vite, Tailwind CSS, Framer Motion, React Router
 - Backend: Node.js, Express.js
 - Database: PostgreSQL via Prisma ORM
-- Authentication: JWT, Google OAuth for students, email/password or Google for admins
+- Authentication: httpOnly JWT cookies with Google OAuth for students and admins
 
 ## Local Setup
 
@@ -48,7 +48,9 @@ A salon booking portal built for BITS Pilani students, with a shared student/adm
    - `ADMIN_BOOTSTRAP_PASSWORD`
 5. Optional protected manual seeding secret:
    - `SEED_SECRET`
-6. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the frontend.
+6. Optional legacy admin password login flag:
+   - `ENABLE_ADMIN_PASSWORD_LOGIN=true`
+7. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the frontend.
 
 For Supabase-backed deployments:
 - Use the pooled connection string for `DATABASE_URL`.
@@ -75,7 +77,6 @@ STUDENT_EMAIL_DOMAINS="pilani.bits-pilani.ac.in"
 SEED_SECRET="replace-with-another-random-secret"
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
-GEMINI_API_KEY=""
 ```
 
 ## Notes
@@ -83,5 +84,6 @@ GEMINI_API_KEY=""
 - The app now expects a hosted PostgreSQL database for production.
 - Prisma uses `DATABASE_URL` for runtime queries and `DIRECT_URL` for direct migration access.
 - Student signup/login is Google-only and restricted to the allowed domains in `STUDENT_EMAIL_DOMAINS`.
+- Admin Google login is controlled by `ADMIN_EMAILS`; password login is disabled unless `ENABLE_ADMIN_PASSWORD_LOGIN=true`.
 - Local SQLite files are intentionally ignored and should not be committed.
 - Student and admin views use the same booking color language for availability, bookings, unavailable time, and reschedules.

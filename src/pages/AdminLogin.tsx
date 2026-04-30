@@ -26,7 +26,6 @@ export default function AdminLogin() {
         toast.error('Please allow popups for this site to connect your account.');
       }
     } catch (error) {
-      console.error('OAuth error:', error);
       toast.error('Failed to initiate Google login');
     }
   };
@@ -38,7 +37,6 @@ export default function AdminLogin() {
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         if (event.data.role === 'admin') {
-          localStorage.setItem('adminToken', event.data.token);
           toast.success('Admin login successful');
           window.location.href = '/admin';
         } else {
