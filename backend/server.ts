@@ -1046,15 +1046,22 @@ app.disable('x-powered-by');
       include: { services: true },
     });
 
-    for (const booking of bookingsNeedingDuration) {
-      const durationMinutes = getBookingDurationMinutes(booking);
+    const updates = bookingsNeedingDuration
+      .map((booking) => ({
+        id: booking.id,
+        durationMinutes: getBookingDurationMinutes(booking),
+      }))
+      .filter((entry) => entry.durationMinutes > 0);
 
-      if (durationMinutes > 0) {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { duration_minutes: durationMinutes },
-        });
-      }
+    if (updates.length > 0) {
+      await Promise.all(
+        updates.map((entry) =>
+          prisma.booking.update({
+            where: { id: entry.id },
+            data: { duration_minutes: entry.durationMinutes },
+          }),
+        ),
+      );
     }
   };
 
@@ -1529,10 +1536,7 @@ app.disable('x-powered-by');
       res.cookie('adminToken', token, authCookieOptions);
 
       res.json({ message: 'Login successful', admin: { id: admin.id, email: admin.email } });
-    } catch (error: any) {
-      if (error?.name === 'BOOKING_NOT_ACTIONABLE') {
-        return res.status(400).json({ error: error.message });
-      }
+    } catch (error) {
       res.status(500).json({ error: 'Server error' });
     }
   });

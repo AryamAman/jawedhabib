@@ -3,9 +3,8 @@ export const DAY_START_TIME = '10:00';
 export const DAY_END_TIME = '20:00';
 
 export const OCCUPIED_BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'RESCHEDULE_PENDING'] as const;
-export const RESCHEDULE_BOOKING_STATUSES = ['RESCHEDULE_PENDING', 'RESCHEDULE_PROPOSED'] as const;
 
-export type BaseSlotStatus = 'AVAILABLE' | 'UNAVAILABLE';
+type BaseSlotStatus = 'AVAILABLE' | 'UNAVAILABLE';
 export type DisplaySlotStatus = 'AVAILABLE' | 'BOOKED' | 'UNAVAILABLE' | 'RESCHEDULED';
 
 export interface ScheduleSlot {
@@ -15,19 +14,19 @@ export interface ScheduleSlot {
   status: string;
 }
 
-export interface SchedulePerson {
+interface SchedulePerson {
   name: string;
   email?: string;
 }
 
-export interface ScheduleService {
+interface ScheduleService {
   id: string;
   name: string;
   price: number;
   duration_minutes: number;
 }
 
-export interface ScheduleStylist {
+interface ScheduleStylist {
   id: string;
   name: string;
 }
@@ -47,7 +46,7 @@ export interface ScheduleBooking {
   stylist?: ScheduleStylist;
 }
 
-export interface ScheduleMeta {
+interface ScheduleMeta {
   date: string;
   stylist_id: string;
   dayStart: string;
@@ -61,14 +60,14 @@ export interface ScheduleResponse {
   bookings: ScheduleBooking[];
 }
 
-export interface TimeRange {
+interface TimeRange {
   startTime: string;
   endTime: string;
   startMinutes: number;
   endMinutes: number;
 }
 
-export interface OccupancyRange extends TimeRange {
+interface OccupancyRange extends TimeRange {
   bookingId: string;
   bookingStatus: string;
   type: 'current' | 'proposed';
@@ -95,7 +94,7 @@ export function formatTimeRange(startTime: string, endTime: string): string {
   return `${startTime} - ${endTime}`;
 }
 
-export function getRangeFromStart(startTime: string, durationMinutes: number): TimeRange {
+function getRangeFromStart(startTime: string, durationMinutes: number): TimeRange {
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = startMinutes + durationMinutes;
 
@@ -136,7 +135,7 @@ export function rangesOverlap(
   return firstStart < secondEnd && secondStart < firstEnd;
 }
 
-export function getBookingCurrentRange(booking: Pick<ScheduleBooking, 'id' | 'status' | 'duration_minutes' | 'start_time' | 'end_time'>): OccupancyRange | null {
+function getBookingCurrentRange(booking: Pick<ScheduleBooking, 'id' | 'status' | 'duration_minutes' | 'start_time' | 'end_time'>): OccupancyRange | null {
   if (!OCCUPIED_BOOKING_STATUSES.includes(booking.status as typeof OCCUPIED_BOOKING_STATUSES[number])) {
     return null;
   }
@@ -152,7 +151,7 @@ export function getBookingCurrentRange(booking: Pick<ScheduleBooking, 'id' | 'st
   };
 }
 
-export function getBookingProposedRange(booking: Pick<ScheduleBooking, 'id' | 'status' | 'duration_minutes' | 'proposed_start_time' | 'proposed_end_time'>): OccupancyRange | null {
+function getBookingProposedRange(booking: Pick<ScheduleBooking, 'id' | 'status' | 'duration_minutes' | 'proposed_start_time' | 'proposed_end_time'>): OccupancyRange | null {
   if (booking.status !== 'RESCHEDULE_PROPOSED' || !booking.proposed_start_time || !booking.proposed_end_time) {
     return null;
   }
@@ -198,7 +197,7 @@ export function getDisplayStatusAtTime(
   return 'AVAILABLE';
 }
 
-export function getSlotByTime(slots: ScheduleSlot[], slotTime: string): ScheduleSlot | undefined {
+function getSlotByTime(slots: ScheduleSlot[], slotTime: string): ScheduleSlot | undefined {
   return slots.find((slot) => slot.time === slotTime);
 }
 
