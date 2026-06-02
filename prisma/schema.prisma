@@ -50,6 +50,8 @@ model Service {
   name             String
   duration_minutes Int
   price            Float
+  gender           String?
+  category         String?
   bookings         Booking[]
 }
 

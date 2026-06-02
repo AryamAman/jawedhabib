@@ -25,6 +25,8 @@ interface Service {
   name: string;
   price: number;
   duration_minutes: number;
+  gender?: string | null;
+  category?: string | null;
 }
 
 interface Stylist {
@@ -71,6 +73,10 @@ export default function Book() {
   const rescheduleState = (location.state as RescheduleState | null) ?? null;
   const isRescheduling = Boolean(rescheduleState?.rescheduleBookingId);
   const [authReady, setAuthReady] = useState(false);
+  const [selectedGender, setSelectedGender] = useState('Men');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(['Hair Care'])
+  );
 
   const bookingDuration = selectedServices.reduce((total, id) => {
     const service = services.find((candidate) => candidate.id === id);
@@ -351,66 +357,137 @@ export default function Book() {
           <section>
             <div className="flex justify-between items-end mb-6">
               <h2 className="section-kicker text-sm">1. Select Services</h2>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">Drag-ready timeline unlocks after this</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">
+                Timeline unlocks after selection
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {services.map((service) => {
-                const isSelected = selectedServices.includes(service.id);
 
-                return (
+            {/* Gender tabs */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {(['Men', 'Women', 'Unisex', 'Beauty'] as const).map((gender) => (
+                <button
+                  key={gender}
+                  type="button"
+                  onClick={() => {
+                    setSelectedGender(gender);
+                    setExpandedCategories(new Set(['Hair Care', 'Threading', 'Hydra Facial']));
+                  }}
+                  className={clsx(
+                    'editorial-btn rounded-[6px] border px-5 py-3 text-sm uppercase tracking-[0.22em]',
+                    selectedGender === gender
+                      ? 'border-[color:var(--btn-dark-bg)] bg-[color:var(--btn-dark-bg)] text-[color:var(--status-confirmed-text)]'
+                      : 'border-[color:var(--border-light)] bg-[color:var(--surface-elevated)] text-[color:var(--text-muted-dark)] hover:bg-[color:var(--status-expired-bg)]',
+                  )}
+                >
+                  {gender}
+                </button>
+              ))}
+            </div>
+
+            {/* Category accordion */}
+            {Array.from(
+              new Set(
+                services
+                  .filter((s) => s.gender === selectedGender)
+                  .map((s) => s.category ?? 'Other')
+              )
+            ).map((cat) => {
+              const catServices = services.filter(
+                (s) => s.gender === selectedGender && (s.category ?? 'Other') === cat
+              );
+              const isExpanded = expandedCategories.has(cat);
+
+              return (
+                <div key={cat} className="mb-4">
                   <button
-                    key={service.id}
                     type="button"
                     onClick={() => {
-                      if (isSelected) {
-                        setSelectedServices(selectedServices.filter((id) => id !== service.id));
-                      } else {
-                        setSelectedServices([...selectedServices, service.id]);
-                      }
+                      setExpandedCategories((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(cat)) next.delete(cat);
+                        else next.add(cat);
+                        return next;
+                      });
                     }}
-                    className={clsx(
-                      'booking-choice-card surface-card surface-card-hover p-6 text-left transition-all duration-200 min-h-[148px] flex flex-col justify-between',
-                      isSelected
-                        ? 'booking-choice-card--selected'
-                        : 'text-[color:var(--text-dark)]',
-                    )}
+                    className="w-full flex items-center justify-between px-4 py-3 surface-card text-left mb-3"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className={clsx(
-                          'font-serif text-2xl mb-2',
-                          isSelected && 'booking-choice-title--selected',
-                        )}
-                        >
-                          {service.name}
-                        </h3>
-                        <p className={clsx(
-                          'text-xs uppercase tracking-[0.24em]',
-                          isSelected ? 'booking-choice-meta--selected' : 'text-[color:var(--accent-gold)]',
-                        )}
-                        >
-                          {service.duration_minutes} minutes
-                        </p>
-                      </div>
-                      <span className={clsx(
-                        'inline-flex h-8 min-w-8 items-center justify-center border px-2 text-[11px] uppercase tracking-[0.22em]',
-                        isSelected ? 'booking-choice-chip--selected' : 'border-[color:var(--border-light)] text-[color:var(--text-muted-dark)]',
-                      )}
-                      >
-                        ₹{service.price}
-                      </span>
-                    </div>
-                    <span className={clsx(
-                      'inline-flex w-fit rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
-                      isSelected ? 'booking-choice-pill--selected' : 'border-[color:var(--border-light)] text-[color:var(--text-secondary)]',
-                    )}
-                    >
-                      {isSelected ? 'Included' : 'Tap to add'}
+                    <span className="section-kicker text-sm">{cat}</span>
+                    <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">
+                      {isExpanded ? '▲ hide' : `▼ ${catServices.length} services`}
                     </span>
                   </button>
-                );
-              })}
-            </div>
+
+                  {isExpanded && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {catServices.map((service) => {
+                        const isSelected = selectedServices.includes(service.id);
+                        return (
+                          <button
+                            key={service.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedServices(selectedServices.filter((id) => id !== service.id));
+                              } else {
+                                setSelectedServices([...selectedServices, service.id]);
+                              }
+                            }}
+                            className={clsx(
+                              'booking-choice-card surface-card surface-card-hover p-5 text-left transition-all duration-200 min-h-[110px] flex flex-col justify-between',
+                              isSelected ? 'booking-choice-card--selected' : 'text-[color:var(--text-dark)]',
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h3 className={clsx(
+                                  'font-serif text-xl mb-1',
+                                  isSelected && 'booking-choice-title--selected',
+                                )}>
+                                  {service.name}
+                                </h3>
+                                <p className={clsx(
+                                  'text-xs uppercase tracking-[0.24em]',
+                                  isSelected ? 'booking-choice-meta--selected' : 'text-[color:var(--accent-gold)]',
+                                )}>
+                                  {service.duration_minutes} mins
+                                </p>
+                              </div>
+                              <span className={clsx(
+                                'inline-flex h-8 min-w-8 items-center justify-center border px-2 text-[11px] uppercase tracking-[0.22em]',
+                                isSelected ? 'booking-choice-chip--selected' : 'border-[color:var(--border-light)] text-[color:var(--text-muted-dark)]',
+                              )}>
+                                ₹{service.price}
+                              </span>
+                            </div>
+                            <span className={clsx(
+                              'inline-flex w-fit rounded-full border px-3 py-2 text-[11px] uppercase tracking-[0.22em]',
+                              isSelected ? 'booking-choice-pill--selected' : 'border-[color:var(--border-light)] text-[color:var(--text-secondary)]',
+                            )}>
+                              {isSelected ? 'Included' : 'Tap to add'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {selectedServices.length > 0 && (
+              <div className="flex items-center justify-between mt-4 px-4 py-3 surface-card">
+                <span className="text-sm text-[color:var(--text-dark)]">
+                  {selectedServices.length} service{selectedServices.length > 1 ? 's' : ''} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedServices([])}
+                  className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--text-secondary)] hover:text-[color:var(--text-dark)]"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </section>
 
           <section>
