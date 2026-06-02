@@ -1,89 +1,150 @@
-# Jawed Habib BITS Pilani - Salon Booking Portal
+# Jawed Habib BITS Pilani — Salon Booking Portal
 
-A salon booking portal built for BITS Pilani students, with a shared student/admin scheduling experience and a compact horizontal timeline workflow.
+A full-stack salon booking portal built for BITS Pilani students. Students can browse services, pick a stylist, and book appointment slots through a clean, responsive UI. Admins manage availability, confirm bookings, and propose reschedules via a compact horizontal timeline dashboard.
+
+---
+
+## Features
+
+- **Student booking flow** — browse services by gender/category, select a stylist, and pick an available time slot
+- **Admin timeline dashboard** — per-day horizontal timeline view across all stylists; mark slots available/unavailable, confirm, reject, or reschedule bookings
+- **Google OAuth** — student and admin login via Google, restricted to configured email domains
+- **Reschedule proposals** — admins can propose an alternate slot; students see and accept/decline from their dashboard
+- **Dark/light theme** — system-aware theme toggle with editorial luxury aesthetic
+- **Vercel-ready** — single-command deployment with automatic Prisma migrations on build
+
+---
 
 ## Tech Stack
 
-- Frontend: React, Vite, Tailwind CSS, Framer Motion, React Router
-- Backend: Node.js, Express.js
-- Database: PostgreSQL via Prisma ORM
-- Authentication: httpOnly JWT cookies with Google OAuth for students and admins
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Vite, Tailwind CSS v4, Framer Motion, React Router v7 |
+| Backend | Node.js, Express.js (served alongside Vite in dev) |
+| Database | PostgreSQL via Prisma ORM |
+| Auth | httpOnly JWT cookies, Google OAuth (`google-auth-library`) |
+| Deployment | Vercel (serverless API routes + static frontend) |
+
+---
+
+## Project Structure
+
+```
+.
+├── api/              # Vercel serverless entry point
+├── backend/          # Express server (dev) and all API route handlers
+├── prisma/
+│   └── schema.prisma # Database models: Student, Admin, Stylist, Service, AppointmentSlot, Booking
+├── src/
+│   ├── components/   # Shared UI components (Navbar, Footer, ThemeProvider, …)
+│   └── pages/        # Route-level pages (Home, Book, Dashboard, AdminDashboard, …)
+├── seed.ts           # Seeds stylists and services into the database
+├── vite.config.ts
+└── vercel.json       # Routes all non-asset requests to the serverless API
+```
+
+---
 
 ## Local Setup
 
-1. Install dependencies:
+### Prerequisites
+
+- Node.js ≥ 18
+- A running PostgreSQL instance (local or remote)
+- A Google Cloud project with an OAuth 2.0 client ID and secret
+
+### Steps
+
+1. **Clone and install**
    ```bash
+   git clone https://github.com/aryamaman/jawedhabib.git
+   cd jawedhabib
    npm install
    ```
-2. Copy `.env.example` to `.env` and fill in your values.
-   For local PostgreSQL, you can point both `DATABASE_URL` and `DIRECT_URL` to the same direct connection string.
-3. Apply migrations:
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` and fill in every value (see [Environment Variables](#environment-variables) below).
+   For a local PostgreSQL database you can set both `DATABASE_URL` and `DIRECT_URL` to the same connection string.
+
+3. **Apply database migrations**
    ```bash
    npx prisma migrate deploy
    ```
-4. Seed base data:
+
+4. **Seed base data** (stylists and services)
    ```bash
    npx tsx seed.ts
    ```
-5. Start the app:
+
+5. **Start the development server**
    ```bash
    npm run dev
    ```
+   The app runs on `http://localhost:3000` (port is set inside `backend/server.ts`).
+
+---
 
 ## Deploying to Vercel
 
-1. Push this repository to GitHub.
-2. Import the repository into Vercel.
-3. Set these environment variables in Vercel:
-   - `APP_URL`
-   - `DATABASE_URL`
-   - `DIRECT_URL`
-   - `JWT_SECRET`
-   - `ADMIN_EMAILS`
-   - `STUDENT_EMAIL_DOMAINS`
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-4. Optional first-deploy bootstrap variables:
-   - `ADMIN_BOOTSTRAP_EMAIL`
-   - `ADMIN_BOOTSTRAP_PASSWORD`
-5. Optional protected manual seeding secret:
-   - `SEED_SECRET`
-6. Optional legacy admin password login flag:
-   - `ENABLE_ADMIN_PASSWORD_LOGIN=true`
-7. Deploy. Vercel uses `npm run vercel-build`, which applies Prisma migrations and builds the frontend.
+1. Push this repository to GitHub and import it into Vercel.
+2. Set the environment variables listed in the next section inside the Vercel project settings.
+3. Deploy — Vercel runs `npm run vercel-build`, which generates the Prisma client, applies migrations, and builds the frontend.
 
-For Supabase-backed deployments:
-- Use the pooled connection string for `DATABASE_URL`.
-- Use the direct Postgres connection string for `DIRECT_URL`.
-- If you are using the Supabase pooler on port `6543`, keep the Prisma-safe query params on `DATABASE_URL`, such as `pgbouncer=true&connection_limit=1`.
+### Supabase notes
 
-For the target production URL, set:
+- Set `DATABASE_URL` to the **pooled** connection string (port 6543) and append `?pgbouncer=true&connection_limit=1`.
+- Set `DIRECT_URL` to the **direct** connection string (port 5432) — Prisma uses this for migrations.
 
-```env
-APP_URL="https://jawedhabib.vercel.app"
-```
+---
 
 ## Environment Variables
 
-```env
-APP_URL="https://jawedhabib.vercel.app"
-DATABASE_URL="postgresql://username:password@pooler-host:6543/jawedhabib?schema=public&pgbouncer=true&connection_limit=1"
-DIRECT_URL="postgresql://username:password@direct-host:5432/jawedhabib?schema=public"
-JWT_SECRET="replace-with-a-long-random-secret"
-ADMIN_BOOTSTRAP_EMAIL="admin@pilani.bits-pilani.ac.in"
-ADMIN_BOOTSTRAP_PASSWORD="replace-with-a-strong-password"
-ADMIN_EMAILS="admin@pilani.bits-pilani.ac.in"
-STUDENT_EMAIL_DOMAINS="pilani.bits-pilani.ac.in"
-SEED_SECRET="replace-with-another-random-secret"
-GOOGLE_CLIENT_ID=""
-GOOGLE_CLIENT_SECRET=""
-```
+Copy `.env.example` to `.env` and replace every placeholder before running locally or deploying.
 
-## Notes
+| Variable | Required | Description |
+|---|---|---|
+| `APP_URL` | Yes | Public URL of the deployed app (e.g. `https://your-app.vercel.app`) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string — use pooled URL for Vercel/Supabase |
+| `DIRECT_URL` | Yes | Direct (non-pooled) PostgreSQL connection string — used by Prisma migrations |
+| `JWT_SECRET` | Yes | Long random string used to sign session JWTs |
+| `GOOGLE_CLIENT_ID` | Yes | OAuth 2.0 client ID from Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | Yes | OAuth 2.0 client secret from Google Cloud Console |
+| `ADMIN_EMAILS` | Yes | Comma-separated list of email addresses that are granted admin access |
+| `STUDENT_EMAIL_DOMAINS` | Yes | Comma-separated list of email domains allowed to sign up as students |
+| `ADMIN_BOOTSTRAP_EMAIL` | Optional | Email for a one-time admin account created on first deploy |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Optional | Password for the bootstrap admin account |
+| `SEED_SECRET` | Optional | Secret token that gates the manual `/api/seed` endpoint |
+| `ENABLE_ADMIN_PASSWORD_LOGIN` | Optional | Set to `true` to allow admins to log in with a password (default: `false`) |
 
-- The app now expects a hosted PostgreSQL database for production.
-- Prisma uses `DATABASE_URL` for runtime queries and `DIRECT_URL` for direct migration access.
-- Student signup/login is Google-only and restricted to the allowed domains in `STUDENT_EMAIL_DOMAINS`.
-- Admin Google login is controlled by `ADMIN_EMAILS`; password login is disabled unless `ENABLE_ADMIN_PASSWORD_LOGIN=true`.
-- Local SQLite files are intentionally ignored and should not be committed.
-- Student and admin views use the same booking color language for availability, bookings, unavailable time, and reschedules.
+---
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** the repository and create a feature branch off `main`:
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+2. **Make your changes.** Keep commits focused and descriptive.
+3. **Run the type checker** before opening a PR:
+   ```bash
+   npm run lint
+   ```
+4. **Open a pull request** against `main` with a clear description of what changed and why.
+
+### Guidelines
+
+- Follow the existing code style (TypeScript, no `any`, Tailwind for styling).
+- Backend route handlers live in `backend/` — keep business logic out of the Express middleware layer.
+- Prisma schema changes must include a migration file (`npx prisma migrate dev --name your_migration`).
+- Do not commit `.env` or any file containing real credentials.
+
+---
+
+## License
+
+This project is open source. See [LICENSE](LICENSE) for details.
