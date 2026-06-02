@@ -744,6 +744,38 @@ app.disable('x-powered-by');
     }
   });
 
+  // Unified auth check — JWT-only, no DB round trip, used by Navbar on every navigation
+  app.get('/api/auth/whoami', (req: any, res) => {
+    const adminToken = req.cookies.adminToken;
+    const studentToken = req.cookies.token;
+
+    if (adminToken) {
+      try {
+        const decoded = jwt.verify(adminToken, JWT_SECRET) as jwt.JwtPayload;
+        if (decoded.role === 'admin') {
+          return res.json({ role: 'admin' });
+        }
+      } catch {}
+    }
+
+    if (studentToken) {
+      try {
+        const decoded = jwt.verify(studentToken, JWT_SECRET) as jwt.JwtPayload;
+        if (decoded.role === 'student') {
+          return res.json({ role: 'student' });
+        }
+      } catch {}
+    }
+
+    return res.json({ role: null });
+  });
+
+  // Keep-alive ping — wire up an external cron (e.g. cron-job.org) to GET /api/health
+  // every 5 minutes to keep the Vercel function warm and eliminate cold-start lag
+  app.get('/api/health', (_req, res) => {
+    res.json({ ok: true, ts: Date.now() });
+  });
+
   app.get('/api/student/profile', authenticate, async (req: any, res) => {
     try {
       const student = await loadStudentProfileRecord(req.user.id);
@@ -1045,8 +1077,56 @@ app.disable('x-powered-by');
   };
 
   const getSchedulePayload = async (date: string, stylistId: string, includePrivateDetails: boolean, runner: PrismaRunner = prisma) => {
-    await ensureDaySlots(date, stylistId, runner);
-    return buildSchedulePayload(date, stylistId, includePrivateDetails, runner);
+    // Fetch slots and bookings in parallel — eliminates the duplicate slot query
+    // that previously fired in ensureDaySlots then again in buildSchedulePayload
+    const [existingSlots, bookings] = await Promise.all([
+      runner.appointmentSlot.findMany({
+        where: { date, stylist_id: stylistId },
+        orderBy: { time: 'asc' },
+      }),
+      runner.booking.findMany({
+        where: {
+          status: { notIn: ['CANCELLED', 'REJECTED'] },
+          OR: [
+            { slot: { is: { date, stylist_id: stylistId } } },
+            { proposed_slot: { is: { date, stylist_id: stylistId } } },
+          ],
+        },
+        include: includePrivateDetails
+          ? { slot: true, proposed_slot: true, services: true, student: true, stylist: true }
+          : { slot: true, proposed_slot: true },
+      }),
+    ]);
+
+    const existingTimes = new Set(existingSlots.map((s) => s.time));
+    const missingSlotData = generateTimeSteps(DAY_START_TIME, DAY_END_TIME, SLOT_INTERVAL_MINUTES)
+      .filter((time) => !existingTimes.has(time))
+      .map((time) => ({ date, time, stylist_id: stylistId, status: 'AVAILABLE' }));
+
+    let slots = existingSlots;
+    if (missingSlotData.length > 0) {
+      // Only fires on the very first load for a new date — re-fetch to get IDs
+      await runner.appointmentSlot.createMany({ data: missingSlotData });
+      slots = await runner.appointmentSlot.findMany({
+        where: { date, stylist_id: stylistId },
+        orderBy: { time: 'asc' },
+      });
+    }
+
+    return {
+      meta: {
+        date,
+        stylist_id: stylistId,
+        dayStart: DAY_START_TIME,
+        dayEnd: DAY_END_TIME,
+        stepMinutes: SLOT_INTERVAL_MINUTES,
+      },
+      slots: slots.map((slot) => ({
+        ...slot,
+        status: normalizeBaseSlotStatus(slot.status),
+      })),
+      bookings: bookings.map((booking) => buildScheduleBooking(booking as any, includePrivateDetails)),
+    };
   };
 
   const validateWindowAvailability = async (options: {
@@ -1338,11 +1418,12 @@ app.disable('x-powered-by');
     }
 
     try {
-      await requireCompletedStudentProfile(student_id);
-
-      const services = await prisma.service.findMany({
-        where: { id: { in: service_ids } },
-      });
+      const [, services] = await Promise.all([
+        requireCompletedStudentProfile(student_id),
+        prisma.service.findMany({
+          where: { id: { in: service_ids } },
+        }),
+      ]);
 
       if (services.length !== service_ids.length) {
         throw new Error('One or more services could not be found');
@@ -1447,12 +1528,13 @@ app.disable('x-powered-by');
     const { new_slot_id } = req.body;
 
     try {
-      await requireCompletedStudentProfile(req.user.id);
-
-      const booking = await prisma.booking.findUnique({
-        where: { id },
-        include: { services: true, slot: true },
-      });
+      const [, booking] = await Promise.all([
+        requireCompletedStudentProfile(req.user.id),
+        prisma.booking.findUnique({
+          where: { id },
+          include: { services: true, slot: true },
+        }),
+      ]);
 
       if (!booking || booking.student_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized' });

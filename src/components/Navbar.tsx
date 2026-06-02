@@ -33,23 +33,15 @@ export default function Navbar() {
 
     const loadAuthState = async () => {
       try {
-        const adminResponse = await fetch('/api/admin/me', {
+        const response = await fetch('/api/auth/whoami', {
           credentials: 'same-origin',
           cache: 'no-store',
         });
-
-        if (!cancelled && adminResponse.ok) {
-          setAuthRole('admin');
-          return;
-        }
-
-        const studentResponse = await fetch('/api/auth/me', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-
-        if (!cancelled) {
-          setAuthRole(studentResponse.ok ? 'student' : null);
+        if (!cancelled && response.ok) {
+          const data = await response.json();
+          setAuthRole(data.role as 'student' | 'admin' | null);
+        } else if (!cancelled) {
+          setAuthRole(null);
         }
       } catch {
         if (!cancelled) {
