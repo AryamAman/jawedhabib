@@ -21,18 +21,18 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
             className="hero-title text-5xl md:text-7xl font-serif mb-6"
           >
             Jawed Habib
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+            transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8, delay: 0.1 }}
             className="hero-sub mb-10 text-sm font-medium md:text-lg"
           >
             Exclusive to BITS Pilani
@@ -40,7 +40,8 @@ export default function Home() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+            transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8, delay: 0.18 }}
+            whileTap={{ scale: 0.97 }}
           >
             <Link 
               to="/book" 
@@ -67,12 +68,12 @@ export default function Home() {
               { name: 'Beard & Grooming', img: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?q=80&w=2070&auto=format&fit=crop' },
               { name: 'Facial & Skincare', img: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=2070&auto=format&fit=crop' }
             ].map((service, i) => (
-              <motion.div 
+              <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.1 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8, delay: i * 0.07 }}
                 className="reveal-card group"
               >
                 <div className="surface-card surface-card-hover overflow-hidden mb-6">
@@ -112,12 +113,13 @@ export default function Home() {
               { name: 'Priya Patel', role: 'Hair Specialist', img: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=1961&auto=format&fit=crop' },
               { name: 'Amit Kumar', role: 'Barber', img: 'https://images.unsplash.com/photo-1618077360395-f3068be8e001?q=80&w=2080&auto=format&fit=crop' }
             ].map((stylist, i) => (
-              <motion.div 
+              <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.1 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8, delay: i * 0.07 }}
+                whileHover={{ y: -4, scale: 1.008 }}
                 className="reveal-card surface-card surface-card-hover text-center px-8 py-10"
               >
                 <div className="stylist-avatar mx-auto mb-6 h-48 w-48 overflow-hidden rounded-full">

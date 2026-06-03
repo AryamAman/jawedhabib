@@ -341,6 +341,7 @@ export default function Book() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
         className="text-center mb-16"
       >
         <h1 className="section-heading text-4xl md:text-5xl font-serif mb-6">

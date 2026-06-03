@@ -53,9 +53,10 @@ export default function AdminLogin() {
   return (
     <div className="page-shell section-light-alt min-h-[calc(100vh-8rem)]">
       <div className="mx-auto max-w-md px-4 py-32">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
         className="auth-card"
       >
         <div className="text-center mb-10">

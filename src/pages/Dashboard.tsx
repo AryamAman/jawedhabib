@@ -214,6 +214,7 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
         className="mb-16"
       >
         <div className="surface-card editorial-border-left mb-12 flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">

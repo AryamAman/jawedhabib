@@ -20,10 +20,10 @@ export default function Services() {
   return (
     <div className="page-shell section-light min-h-[calc(100vh-8rem)]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
         className="text-center mb-16"
       >
         <h1 className="section-heading text-4xl md:text-5xl font-serif mb-6">Our Services</h1>
@@ -32,11 +32,11 @@ export default function Services() {
 
       <div className="space-y-8">
         {services.map((service, i) => (
-          <motion.div 
+          <motion.div
             key={service.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: i * 0.1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26, delay: i * 0.05 }}
             className="surface-card reveal-card flex items-center justify-between gap-6 px-6 py-7"
           >
             <div>

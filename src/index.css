@@ -20,12 +20,17 @@
   --border-light: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.16);
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  --radius-sm: 6px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
 
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.16);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  --shadow-card: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.08), 0 16px 40px rgba(0, 0, 0, 0.14), 0 32px 56px rgba(0, 0, 0, 0.06);
 
   --page-bg: var(--bg-light);
   --page-bg-alt: var(--bg-light-alt);
@@ -167,6 +172,9 @@
   --timeline-tooltip-bg: #f0ede8;
   --timeline-tooltip-text: #0c0c0c;
   --timeline-range-overlay: rgba(240, 237, 232, 0.09);
+
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 2px 8px rgba(0, 0, 0, 0.32), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.44), 0 16px 40px rgba(0, 0, 0, 0.36), 0 32px 60px rgba(0, 0, 0, 0.2);
 }
 
 html,
@@ -322,9 +330,17 @@ select:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
+.surface-card,
+.surface-card-muted,
+.surface-card-dark {
+  transition: transform 0.28s var(--ease-spring), box-shadow 0.28s var(--ease-out-expo), border-color 0.2s var(--ease-apple);
+  will-change: transform;
+}
+
 .surface-card-hover:hover {
-  transform: translateY(-3px);
+  transform: translateY(-5px) scale(1.006);
   box-shadow: var(--shadow-card-hover);
+  transition: transform 0.28s var(--ease-spring), box-shadow 0.28s var(--ease-out-expo);
 }
 
 .surface-card-dark {
@@ -338,6 +354,8 @@ select:focus-visible {
 .booking-choice-card {
   position: relative;
   overflow: hidden;
+  transition: transform 0.24s var(--ease-spring), box-shadow 0.24s var(--ease-out-expo), border-color 0.2s var(--ease-apple), background 0.2s var(--ease-apple);
+  will-change: transform;
 }
 
 .booking-choice-card--selected {
@@ -350,6 +368,7 @@ select:focus-visible {
     0 16px 30px rgba(12, 12, 12, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 0 0 1px rgba(191, 164, 106, 0.08);
+  transform: translateY(-2px);
 }
 
 .booking-choice-card--selected:hover {
@@ -412,16 +431,22 @@ select:focus-visible {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   transition:
-    transform 0.2s ease,
-    background-color 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    transform 0.18s var(--ease-spring),
+    background-color 0.18s var(--ease-apple),
+    color 0.18s var(--ease-apple),
+    border-color 0.18s var(--ease-apple),
+    box-shadow 0.18s var(--ease-apple);
   box-shadow: 0 10px 26px rgba(12, 12, 12, 0.08);
+  will-change: transform;
 }
 
 .editorial-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.01);
+}
+
+.editorial-btn:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 0.08s;
 }
 
 .editorial-btn:disabled {
@@ -506,6 +531,7 @@ select:focus-visible {
 .editorial-input:focus {
   outline: none;
   border-bottom-color: var(--accent-gold);
+  box-shadow: 0 4px 12px rgba(191, 164, 106, 0.12);
 }
 
 .editorial-label {
@@ -688,12 +714,20 @@ select:focus-visible {
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  transition: transform 0.18s var(--ease-spring), background-color 0.18s var(--ease-apple), color 0.18s var(--ease-apple), box-shadow 0.18s var(--ease-apple);
+  will-change: transform;
 }
 
 .nav-cta:hover {
   background: var(--accent-gold);
   color: #0c0c0c;
-  box-shadow: 0 12px 28px rgba(191, 164, 106, 0.18);
+  box-shadow: 0 8px 24px rgba(191, 164, 106, 0.22);
+  transform: scale(1.03);
+}
+
+.nav-cta:active {
+  transform: scale(0.95);
+  transition-duration: 0.08s;
 }
 
 .theme-toggle {
@@ -1048,21 +1082,30 @@ select:focus-visible {
   }
 }
 
+/* Thin gold scrollbar — Chrome/Edge */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-base);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
-  border-radius: 3px;
+  background: var(--accent-gold-border);
+  border-radius: 999px;
+  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-gold);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-gold-border) transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1078,5 +1121,22 @@ select:focus-visible {
   .reveal-card {
     opacity: 1;
     transform: none;
+  }
+
+  .editorial-btn,
+  .editorial-btn:active,
+  .editorial-btn:hover,
+  .nav-cta,
+  .nav-cta:active,
+  .nav-cta:hover,
+  .surface-card,
+  .surface-card-muted,
+  .surface-card-dark,
+  .surface-card-hover:hover,
+  .booking-choice-card,
+  .booking-choice-card--selected {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
   }
 }

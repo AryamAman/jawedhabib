@@ -60,6 +60,7 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
             className="auth-card"
           >
             <div className="text-center mb-10">
@@ -106,6 +107,7 @@ export default function Login() {
           <motion.aside
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 28, delay: 0.08 }}
             className="auth-message-panel"
           >
             <div className="editorial-divider"></div>
