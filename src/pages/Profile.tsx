@@ -107,6 +107,9 @@ export default function Profile() {
         className="auth-card"
       >
         <div className="mb-10 text-center">
+          <p className="section-kicker mb-3 text-xs">
+            {profile.profileCompleted ? 'Your details' : 'One last step'}
+          </p>
           <h1 className="section-heading text-3xl font-serif mb-4">
             {profile.profileCompleted ? 'Your Profile' : 'Complete Your Profile'}
           </h1>

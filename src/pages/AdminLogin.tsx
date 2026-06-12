@@ -60,9 +60,10 @@ export default function AdminLogin() {
         className="auth-card"
       >
         <div className="text-center mb-10">
+          <p className="section-kicker mb-3 text-xs">Salon management</p>
           <h1 className="section-heading text-3xl font-serif mb-4">Admin Access</h1>
           <div className="editorial-divider"></div>
-          <p className="auth-subtitle mt-4">Sign in to manage salon</p>
+          <p className="auth-subtitle mt-4">Sign in to manage the salon</p>
         </div>
 
         <div className="mt-6">

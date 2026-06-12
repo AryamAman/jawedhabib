@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
@@ -14,8 +14,9 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Book from './pages/Book';
 import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
 import AdminLogin from './pages/AdminLogin';
+
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 import Profile from './pages/Profile';
 
 function AppFrame() {
@@ -62,7 +63,14 @@ function AppFrame() {
           <Route path="/book" element={<Book />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route
+            path="/admin"
+            element={(
+              <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-28"><div className="skeleton h-64 w-full" /></div>}>
+                <AdminDashboard />
+              </Suspense>
+            )}
+          />
           <Route path="/admin/login" element={<AdminLogin />} />
         </Routes>
       </main>

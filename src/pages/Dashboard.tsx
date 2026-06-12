@@ -223,6 +223,7 @@ export default function Dashboard() {
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div>
+              <p className="section-kicker mb-1 text-[11px]">Welcome back</p>
               <h1 className="section-heading text-3xl font-serif">{user.name}</h1>
               <p className="mt-1 text-sm uppercase tracking-[0.18em] text-[color:var(--text-secondary)]">{user.email}</p>
               <p className="mt-2 text-xs uppercase tracking-[0.22em] text-[color:var(--text-secondary)]">{user.phone}</p>

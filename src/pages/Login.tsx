@@ -64,6 +64,7 @@ export default function Login() {
             className="auth-card"
           >
             <div className="text-center mb-10">
+              <p className="section-kicker mb-3 text-xs">Welcome back</p>
               <h1 className="section-heading text-3xl font-serif mb-4">Student Login</h1>
               <div className="editorial-divider mb-2"></div>
             </div>
