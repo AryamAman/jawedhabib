@@ -86,7 +86,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...spring, delay: 0.16 }}
-            className="mx-auto mb-10 max-w-xl text-base leading-relaxed text-[rgba(240,237,232,0.82)] md:text-lg"
+            className="hero-copy mx-auto mb-10 max-w-xl text-base leading-relaxed md:text-lg"
           >
             Crafted by experts. Designed for you. A premium salon experience,
             right on campus.
@@ -103,7 +103,7 @@ export default function Home() {
             </Link>
             <Link
               to="/services"
-              className="group inline-flex items-center gap-2 text-[0.74rem] uppercase tracking-[0.18em] text-[rgba(240,237,232,0.85)] transition-colors hover:text-[color:var(--accent-gold)]"
+              className="hero-copy group inline-flex items-center gap-2 text-[0.74rem] uppercase tracking-[0.18em] transition-colors hover:text-[color:var(--accent-gold)]"
             >
               Explore Services
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" strokeWidth={1.6} />
