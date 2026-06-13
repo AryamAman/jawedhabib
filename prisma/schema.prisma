@@ -76,12 +76,19 @@ model Booking {
   slot_id          String
   proposed_slot_id String?
   duration_minutes Int             @default(0)
-  status           String          @default("PENDING") // PENDING, CONFIRMED, REJECTED, CANCELLED, RESCHEDULE_PROPOSED
+  // PENDING, CONFIRMED, REJECTED, CANCELLED, NEEDS_RESCHEDULE, RESCHEDULE_PENDING, RESCHEDULE_PROPOSED
+  status           String          @default("PENDING")
   created_at       DateTime        @default(now())
-  
+
   student          Student         @relation(fields: [student_id], references: [id])
   services         Service[]
   stylist          Stylist         @relation(fields: [stylist_id], references: [id])
   slot             AppointmentSlot @relation("CurrentSlot", fields: [slot_id], references: [id])
   proposed_slot    AppointmentSlot? @relation("ProposedSlot", fields: [proposed_slot_id], references: [id])
+
+  @@index([student_id])
+  @@index([slot_id])
+  @@index([proposed_slot_id])
+  @@index([stylist_id])
+  @@index([status])
 }

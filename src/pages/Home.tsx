@@ -49,7 +49,9 @@ export default function Home() {
       <section ref={heroRef} className="hero-shell relative flex min-h-[92vh] items-center justify-center overflow-hidden">
         <motion.div className="absolute inset-0 z-0" style={{ y: parallaxY }}>
           <img
-            src="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2400&auto=format&fit=crop"
+            src="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1920&auto=format&fit=crop"
+            srcSet="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=768&auto=format&fit=crop 768w, https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1280&auto=format&fit=crop 1280w, https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1920&auto=format&fit=crop 1920w, https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2400&auto=format&fit=crop 2400w"
+            sizes="100vw"
             alt="The Jawed Habib salon interior — warm lighting, styling chairs and mirrors"
             className="hero-media img-grade scale-[1.08]"
             referrerPolicy="no-referrer"

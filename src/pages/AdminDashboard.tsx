@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { addDays, format, parseISO, startOfToday } from 'date-fns';
 import { clsx } from 'clsx';
@@ -720,8 +720,56 @@ export default function AdminDashboard() {
     }
   };
 
+  // Compute each slot's display status once per schedule change rather than
+  // flat-mapping every booking for every cell on every render (hover/drag churn).
+  const slotDisplayStatus = useMemo(() => {
+    const slots = schedule?.slots ?? [];
+    const bookings = schedule?.bookings ?? [];
+    const map = new Map<string, DisplaySlotStatus>();
+    for (const slot of slots) {
+      map.set(slot.time, getDisplayStatusAtTime(slot.time, slots, bookings));
+    }
+    return map;
+  }, [schedule]);
+
   const getTimelineSlotStatus = (slot: ScheduleSlot): DisplaySlotStatus =>
-    getDisplayStatusAtTime(slot.time, currentScheduleSlots, currentScheduleBookings);
+    slotDisplayStatus.get(slot.time)
+      ?? getDisplayStatusAtTime(slot.time, currentScheduleSlots, currentScheduleBookings);
+
+  // While a booking pill is being dragged, resolve every valid drop target once
+  // instead of re-running isStartTimeSelectable per cell on each drag-over event.
+  const droppableSlotTimes = useMemo(() => {
+    const result = new Set<string>();
+
+    if (!schedule || !draggingBookingId || isSelectedDatePast) {
+      return result;
+    }
+
+    const draggedBooking = schedule.bookings.find((booking) => booking.id === draggingBookingId);
+    if (!draggedBooking) {
+      return result;
+    }
+
+    for (const slot of schedule.slots) {
+      if (slot.time === draggedBooking.start_time) {
+        continue;
+      }
+
+      if (isStartTimeSelectable({
+        slotTime: slot.time,
+        slots: schedule.slots,
+        bookings: schedule.bookings,
+        durationMinutes: draggedBooking.duration_minutes,
+        dayEnd: schedule.meta.dayEnd,
+        stepMinutes: schedule.meta.stepMinutes,
+        excludeBookingId: draggedBooking.id,
+      })) {
+        result.add(slot.time);
+      }
+    }
+
+    return result;
+  }, [schedule, draggingBookingId, isSelectedDatePast]);
 
   const getTrackCellClasses = (status: DisplaySlotStatus, canDrop: boolean) => {
     if (status === 'BOOKED') {
@@ -739,27 +787,7 @@ export default function AdminDashboard() {
     return canDrop ? 'timeline-cell--available timeline-cell--interactive' : 'timeline-cell--available';
   };
 
-  const currentDraggedBooking = currentScheduleBookings.find((booking) => booking.id === draggingBookingId) ?? null;
-
-  const canDropBookingOnSlot = (slot: ScheduleSlot) => {
-    if (!schedule || !currentDraggedBooking || isSelectedDatePast) {
-      return false;
-    }
-
-    if (slot.time === currentDraggedBooking.start_time) {
-      return false;
-    }
-
-    return isStartTimeSelectable({
-      slotTime: slot.time,
-      slots: schedule.slots,
-      bookings: schedule.bookings,
-      durationMinutes: currentDraggedBooking.duration_minutes,
-      dayEnd: schedule.meta.dayEnd,
-      stepMinutes: schedule.meta.stepMinutes,
-      excludeBookingId: currentDraggedBooking.id,
-    });
-  };
+  const canDropBookingOnSlot = (slot: ScheduleSlot) => droppableSlotTimes.has(slot.time);
 
   const activeRange = dragRange && schedule
     ? {

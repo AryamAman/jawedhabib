@@ -424,6 +424,9 @@ select:focus-visible {
 }
 
 .editorial-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -513,6 +516,33 @@ select:focus-visible {
   background: var(--text-primary);
   color: #0c0c0c;
   box-shadow: 0 16px 34px rgba(240, 237, 232, 0.18);
+}
+
+/* Premium light-sweep — a single sheen glides across primary CTAs on hover. */
+.editorial-btn-dark::after,
+.editorial-btn-light::after,
+.editorial-btn-outline::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: translateX(-220%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.editorial-btn-dark:hover:not(:disabled)::after,
+.editorial-btn-light:hover:not(:disabled)::after,
+.editorial-btn-outline:hover:not(:disabled)::after {
+  animation: btn-sheen 0.85s var(--ease-out-expo);
+}
+
+@keyframes btn-sheen {
+  to {
+    transform: translateX(340%) skewX(-18deg);
+  }
 }
 
 .editorial-input {
@@ -1233,8 +1263,24 @@ body {
   content: '';
   width: 48px;
   height: 1.5px;
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 110, 0.9), transparent);
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 110, 0.95), transparent);
+  background-size: 220% 100%;
+  background-position: 0% 0%;
   border-radius: 1px;
+  animation: eyebrow-shimmer 4.5s ease-in-out infinite;
+}
+
+@keyframes eyebrow-shimmer {
+  0%,
+  100% {
+    background-position: 0% 0%;
+    opacity: 0.7;
+  }
+
+  50% {
+    background-position: 100% 0%;
+    opacity: 1;
+  }
 }
 
 .hero-copy {

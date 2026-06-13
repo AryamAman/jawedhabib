@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -86,6 +86,7 @@ export default function Book() {
     new Set(['Hair Care'])
   );
   const [step, setStep] = useState(isRescheduling ? 3 : 1);
+  const [submitting, setSubmitting] = useState(false);
 
   const bookingDuration = selectedServices.reduce((total, id) => {
     const service = services.find((candidate) => candidate.id === id);
@@ -97,7 +98,7 @@ export default function Book() {
     return total + (service?.price ?? 0);
   }, 0);
 
-  const dates = Array.from({ length: 7 }).map((_, index) => addDays(startOfToday(), index));
+  const dates = useMemo(() => Array.from({ length: 7 }).map((_, index) => addDays(startOfToday(), index)), []);
 
   useEffect(() => {
     fetch('/api/auth/me', {
@@ -200,16 +201,32 @@ export default function Book() {
       .finally(() => setLoadingSchedule(false));
   }, [authReady, selectedStylist, selectedDate]);
 
-  const selectableStartTimes = schedule && bookingDuration > 0
-    ? getSelectableStartTimes({
-        slots: schedule.slots,
-        bookings: schedule.bookings,
-        durationMinutes: bookingDuration,
-        dayEnd: schedule.meta.dayEnd,
-        stepMinutes: schedule.meta.stepMinutes,
-        excludeBookingId: rescheduleState?.rescheduleBookingId,
-      })
-    : new Set<string>();
+  // Memoized so hovering/clicking the timeline (which churns local state every
+  // mousemove) does not re-run this O(slots × bookings) sweep on each render.
+  const selectableStartTimes = useMemo(() => (
+    schedule && bookingDuration > 0
+      ? getSelectableStartTimes({
+          slots: schedule.slots,
+          bookings: schedule.bookings,
+          durationMinutes: bookingDuration,
+          dayEnd: schedule.meta.dayEnd,
+          stepMinutes: schedule.meta.stepMinutes,
+          excludeBookingId: rescheduleState?.rescheduleBookingId,
+        })
+      : new Set<string>()
+  ), [schedule, bookingDuration, rescheduleState?.rescheduleBookingId]);
+
+  // Precompute each slot's base display status once per schedule change instead
+  // of flat-mapping every booking for every cell on every render.
+  const slotDisplayStatus = useMemo(() => {
+    const slots = schedule?.slots ?? [];
+    const bookings = schedule?.bookings ?? [];
+    const map = new Map<string, DisplaySlotStatus>();
+    for (const slot of slots) {
+      map.set(slot.time, getDisplayStatusAtTime(slot.time, slots, bookings));
+    }
+    return map;
+  }, [schedule]);
 
   useEffect(() => {
     if (!schedule) {
@@ -225,10 +242,16 @@ export default function Book() {
   }, [schedule, selectedSlot, selectableStartTimes]);
 
   const handleBook = async () => {
+    if (submitting) {
+      return;
+    }
+
     if (selectedServices.length === 0 || !selectedStylist || !selectedSlot) {
       toast.error('Please select your services, stylist, and time');
       return;
     }
+
+    setSubmitting(true);
 
     try {
       const url = isRescheduling
@@ -259,6 +282,7 @@ export default function Book() {
       navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.message || 'An unexpected error occurred');
+      setSubmitting(false);
     }
   };
 
@@ -301,7 +325,8 @@ export default function Book() {
   };
 
   const getStudentSlotStatus = (slot: ScheduleSlot): DisplaySlotStatus => {
-    const baseStatus = getDisplayStatusAtTime(slot.time, timelineSlots, timelineBookings);
+    const baseStatus = slotDisplayStatus.get(slot.time)
+      ?? getDisplayStatusAtTime(slot.time, timelineSlots, timelineBookings);
 
     if (baseStatus !== 'AVAILABLE') {
       return baseStatus;
@@ -1006,10 +1031,12 @@ export default function Book() {
               <button
                 type="button"
                 onClick={handleBook}
-                disabled={!isBookable}
+                disabled={!isBookable || submitting}
                 className="editorial-btn editorial-btn-dark w-full py-4 disabled:opacity-45"
               >
-                {isRescheduling ? 'Confirm Reschedule' : 'Request Booking'}
+                {submitting
+                  ? (isRescheduling ? 'Rescheduling…' : 'Booking…')
+                  : (isRescheduling ? 'Confirm Reschedule' : 'Request Booking')}
               </button>
               {!isBookable && (
                 <p className="mt-4 text-center text-[11px] uppercase tracking-[0.2em] text-[color:var(--text-secondary)]">
@@ -1047,10 +1074,10 @@ export default function Book() {
             <button
               type="button"
               onClick={handleBook}
-              disabled={!isBookable}
+              disabled={!isBookable || submitting}
               className="editorial-btn editorial-btn-dark px-6 py-3"
             >
-              {isRescheduling ? 'Confirm' : 'Request Booking'}
+              {submitting ? 'Booking…' : (isRescheduling ? 'Confirm' : 'Request Booking')}
             </button>
           )}
         </div>

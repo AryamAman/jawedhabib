@@ -862,6 +862,11 @@ app.disable('x-powered-by');
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const isRetryableTransactionError = (error: unknown) => {
+    // P2034: write conflict / deadlock — Prisma explicitly asks us to retry.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+      return true;
+    }
+
     if (!(error instanceof Error)) {
       return false;
     }
@@ -872,14 +877,18 @@ app.disable('x-powered-by');
       message.includes('Transaction already closed') ||
       message.includes('Transaction not found') ||
       message.includes('expired transaction') ||
-      message.includes('Transaction API error')
+      message.includes('Transaction API error') ||
+      message.includes('write conflict') ||
+      message.includes('deadlock') ||
+      message.includes('could not serialize')
     );
   };
 
   const runInteractiveTransaction = async <T>(
     operation: (tx: Prisma.TransactionClient) => Promise<T>,
-    maxAttempts = 3,
+    options: { maxAttempts?: number; isolationLevel?: Prisma.TransactionIsolationLevel } = {},
   ) => {
+    const { maxAttempts = 3, isolationLevel } = options;
     let attempt = 0;
     let lastError: unknown;
 
@@ -887,7 +896,10 @@ app.disable('x-powered-by');
       attempt += 1;
 
       try {
-        return await prisma.$transaction(operation, INTERACTIVE_TRANSACTION_OPTIONS);
+        return await prisma.$transaction(operation, {
+          ...INTERACTIVE_TRANSACTION_OPTIONS,
+          ...(isolationLevel ? { isolationLevel } : {}),
+        });
       } catch (error) {
         lastError = error;
 
@@ -1001,7 +1013,9 @@ app.disable('x-powered-by');
       }));
 
     if (missingSlots.length > 0) {
-      await runner.appointmentSlot.createMany({ data: missingSlots });
+      // skipDuplicates keeps day-slot generation idempotent when two requests
+      // race to create the same brand-new day (unique [date,time,stylist_id]).
+      await runner.appointmentSlot.createMany({ data: missingSlots, skipDuplicates: true });
     }
   };
 
@@ -1105,8 +1119,9 @@ app.disable('x-powered-by');
 
     let slots = existingSlots;
     if (missingSlotData.length > 0) {
-      // Only fires on the very first load for a new date — re-fetch to get IDs
-      await runner.appointmentSlot.createMany({ data: missingSlotData });
+      // Only fires on the very first load for a new date — re-fetch to get IDs.
+      // skipDuplicates guards against two requests racing to seed the same day.
+      await runner.appointmentSlot.createMany({ data: missingSlotData, skipDuplicates: true });
       slots = await runner.appointmentSlot.findMany({
         where: { date, stylist_id: stylistId },
         orderBy: { time: 'asc' },
@@ -1430,32 +1445,39 @@ app.disable('x-powered-by');
       }
 
       const durationMinutes = services.reduce((total, service) => total + service.duration_minutes, 0);
-      const slot = await validateWindowAvailability({
-        slotId: slot_id,
-        durationMinutes,
-      });
 
-      if (slot.stylist_id !== stylist_id) {
-        throw new Error('Selected time does not belong to the chosen stylist');
-      }
+      // Validate availability and create the booking atomically under SERIALIZABLE
+      // isolation. This closes the time-of-check/time-of-use window where two
+      // students could both pass validation and double-book the same slot.
+      const booking = await runInteractiveTransaction(async (tx) => {
+        const slot = await validateWindowAvailability({
+          runner: tx,
+          slotId: slot_id,
+          durationMinutes,
+        });
 
-      const booking = await prisma.booking.create({
-        data: {
-          student_id,
-          stylist_id,
-          slot_id,
-          duration_minutes: durationMinutes,
-          status: 'PENDING',
-          services: {
-            connect: service_ids.map((id: string) => ({ id })),
+        if (slot.stylist_id !== stylist_id) {
+          throw new Error('Selected time does not belong to the chosen stylist');
+        }
+
+        return tx.booking.create({
+          data: {
+            student_id,
+            stylist_id,
+            slot_id,
+            duration_minutes: durationMinutes,
+            status: 'PENDING',
+            services: {
+              connect: service_ids.map((id: string) => ({ id })),
+            },
           },
-        },
-        include: {
-          slot: true,
-          services: true,
-          stylist: true,
-        },
-      });
+          include: {
+            slot: true,
+            services: true,
+            stylist: true,
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
 
       res.json({ message: 'Booking successful', booking });
     } catch (error: any) {
@@ -1551,21 +1573,25 @@ app.disable('x-powered-by');
       }
 
       const durationMinutes = getBookingDurationMinutes(booking);
-      const newSlot = await validateWindowAvailability({
-        slotId: new_slot_id,
-        durationMinutes,
-        excludeBookingId: booking.id,
-      });
 
-      await prisma.booking.update({
-        where: { id },
-        data: {
-          slot_id: new_slot_id,
-          stylist_id: newSlot.stylist_id,
-          status: 'RESCHEDULE_PENDING',
-          proposed_slot_id: null,
-        },
-      });
+      await runInteractiveTransaction(async (tx) => {
+        const newSlot = await validateWindowAvailability({
+          runner: tx,
+          slotId: new_slot_id,
+          durationMinutes,
+          excludeBookingId: booking.id,
+        });
+
+        await tx.booking.update({
+          where: { id },
+          data: {
+            slot_id: new_slot_id,
+            stylist_id: newSlot.stylist_id,
+            status: 'RESCHEDULE_PENDING',
+            proposed_slot_id: null,
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
 
       res.json({ message: 'Rescheduled successfully' });
     } catch (error: any) {
@@ -1609,21 +1635,27 @@ app.disable('x-powered-by');
       const durationMinutes = getBookingDurationMinutes(booking);
 
       if (accept) {
-        await validateWindowAvailability({
-          slotId: booking.proposed_slot_id,
-          durationMinutes,
-          excludeBookingId: booking.id,
-        });
+        const proposedSlotId = booking.proposed_slot_id;
+        const proposedStylistId = booking.proposed_slot.stylist_id;
 
-        await prisma.booking.update({
-          where: { id },
-          data: {
-            slot_id: booking.proposed_slot_id,
-            stylist_id: booking.proposed_slot.stylist_id,
-            proposed_slot_id: null,
-            status: 'CONFIRMED',
-          },
-        });
+        await runInteractiveTransaction(async (tx) => {
+          await validateWindowAvailability({
+            runner: tx,
+            slotId: proposedSlotId,
+            durationMinutes,
+            excludeBookingId: booking.id,
+          });
+
+          await tx.booking.update({
+            where: { id },
+            data: {
+              slot_id: proposedSlotId,
+              stylist_id: proposedStylistId,
+              proposed_slot_id: null,
+              status: 'CONFIRMED',
+            },
+          });
+        }, { isolationLevel: 'Serializable' });
 
         return res.json({ message: 'New time accepted successfully', status: 'CONFIRMED' });
       }
@@ -1903,19 +1935,23 @@ app.disable('x-powered-by');
       }
 
       const durationMinutes = getBookingDurationMinutes(booking);
-      await validateWindowAvailability({
-        slotId: new_slot_id,
-        durationMinutes,
-        excludeBookingId: booking.id,
-      });
 
-      await prisma.booking.update({
-        where: { id },
-        data: {
-          proposed_slot_id: new_slot_id,
-          status: 'RESCHEDULE_PROPOSED',
-        },
-      });
+      await runInteractiveTransaction(async (tx) => {
+        await validateWindowAvailability({
+          runner: tx,
+          slotId: new_slot_id,
+          durationMinutes,
+          excludeBookingId: booking.id,
+        });
+
+        await tx.booking.update({
+          where: { id },
+          data: {
+            proposed_slot_id: new_slot_id,
+            status: 'RESCHEDULE_PROPOSED',
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
 
       res.json({ message: 'New time proposed successfully' });
     } catch (error: any) {
