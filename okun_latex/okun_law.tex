@@ -1,0 +1,688 @@
+\documentclass[12pt]{article}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath}
+\usepackage{unicode-math}
+\IfFontExistsTF{Times New Roman}{%
+  \setmainfont{Times New Roman}}{%
+  \setmainfont{Liberation Serif}}
+\setmathfont{TeX Gyre Termes Math}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{needspace}
+\usepackage[hyphens]{url}
+\urlstyle{same}
+\usepackage[colorlinks=false,pdfborder={0 0 0},breaklinks]{hyperref}
+
+% 12 pt, 1.5 line spacing, justified, no indent, 10 pt paragraph spacing
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{10pt}
+\setlength{\emergencystretch}{3em}
+\sloppy
+\frenchspacing
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\setlength{\heavyrulewidth}{1pt}
+\setlength{\lightrulewidth}{0.4pt}
+\setlength{\abovedisplayskip}{6pt}
+\setlength{\belowdisplayskip}{6pt}
+
+\newcommand{\hone}[2]{\par\Needspace{4\baselineskip}\vspace{2pt}{\noindent\raggedright\bfseries
+  \ifx\relax#1\relax\else\makebox[0.5in][l]{#1}\fi #2\par}\nopagebreak\vspace{-2pt}}
+\newcommand{\htwo}[2]{\par\Needspace{4\baselineskip}\vspace{2pt}{\noindent\raggedright\bfseries\itshape
+  \makebox[0.5in][l]{#1}#2\par}\nopagebreak\vspace{-2pt}}
+\newcommand{\FIG}[2]{\par\Needspace{12\baselineskip}\begin{center}\includegraphics[width=#2]{#1}\end{center}\nopagebreak}
+\newcommand{\CAP}[1]{\par\nopagebreak\vspace{-4pt}{\singlespacing\noindent\raggedright #1\par}\vspace{-2pt}}
+\newcommand{\TCAP}[1]{\par\Needspace{8\baselineskip}{\singlespacing\noindent\raggedright #1\par}\nopagebreak\vspace{2pt}}
+\newcommand{\NOTE}[1]{\par\nopagebreak\vspace{-4pt}{\singlespacing\noindent #1\par}\vspace{-2pt}}
+
+\begin{document}
+\noindent
+\begin{center}\bfseries Evaluating Okun’s Law in Emerging Economies: Evidence from India, Brazil, South Africa and Indonesia\end{center}
+
+\begin{center}Submitted by-\\
+Aryam Aman (2024B3A30917P)\\
+Dhairya Khamar (2024B3AJ1248P)\\
+\textbf{Issues in Economic Development, BITS Pilani, Pilani Campus}\end{center}
+
+\hone{}{Abstract}
+
+\textbf{Purpose} – Okun’s Law (1962) states that a rise in output growth is linked to a decline in unemployment. This paper asks if that rule of thumb holds in emerging economies, whose labor markets look very different from the US economy on which it was built. We look at India, Brazil, South Africa and Indonesia, with a more detailed case study of India.
+
+
+\textbf{Design/methodology/approach} – We use annual World Bank data for 1991 to 2024. The main model is the difference version estimated with OLS and the gap version (HP filter) is a robustness check. We apply Newey West standard errors and a dummy for 2020. For India we add sub-periods and employment model using RBI KLEMS data. Re-estimation for Brazil using IBGE quarterly data.
+
+
+\textbf{Findings} – Brazil has a coefficient of -0.285, which is near the benchmark value of -0.4 for advanced economies, a fact that is confirmed by the IBGE data (ranging from -0.313 to -0.556). India\textquotesingle{}s coefficient is -0.048 and is not significant; so are those of South Africa and Indonesia. In each of the four countries the coefficient is smaller in magnitude than -0.4. Employment in India responds only slightly to output growth.
+
+
+\textbf{Research limitations/implications} – The series for unemployment and employment in India are mostly based on modelling or interpolation prior to 2017–18, which can have the effect of flattening the estimated relationship, and the results refer only to short-run, linear relationships.
+
+
+\textbf{Originality/value} – The paper combines four major emerging economies onto a single database and applies one specification; it also compares India and Brazil with their respective national sources, thereby allowing it to tell the difference between a genuinely weak relationship and one that appears weak merely because of the data.
+
+
+\textbf{Keywords} Okun’s law, Unemployment, Economic growth, Emerging economies, India, Jobless growth
+
+
+\textbf{Paper type} Research article
+
+
+\hone{1}{Introduction}
+
+In 1962 Arthur Okun observed that in the United States a decrease in unemployment of one percentage point was associated with an extra output of about 3 per cent. Subsequent research yielded a more stable figure. When looking at the difference form which relates the change in unemployment to output growth, the coefficient stabilises at about -0.4 to -0.5. The importance of this relationship lies in its practical application; it is used to forecast unemployment, to set growth targets and to assess the number of jobs lost during a recession. Since it is so simple, it has become one of the most well-known rules of thumb in macroeconomics.\\
+There are valid reasons to expect the relationship to be different in emerging economies. Since a large portion of the workforce is engaged in informal or self-employed activities and agriculture employs a great deal of people, and since most of these countries do not have unemployment insurance, individuals cannot afford to be unemployed when output declines and therefore take any work they can find, making adjustments by working fewer hours or earning less. Cross-country studies confirm this. In developing economies the coefficient is roughly half as big and the fit about half as good, and it is nearly zero in low-income countries. In such economies the unemployment rate reflects only a small part of the way the labour market responds to a recession. A great deal of the adjustment takes place out of sight, through lower earnings, shorter working hours and workers moving into informal work.
+
+
+India is the most difficult case to deal with. Although it has experienced rapid growth since 1991, measured unemployment has remained almost the same. This is what is known as the \textquotesingle{}jobless growth\textquotesingle{} debate. The Indian studies do not all reach the same conclusion; some believe the law is valid, while others think that it only applies when unemployment and growth reach certain levels. 
+
+
+There are two points that merit attention. The first is that the majority of studies focus on a single country, using different data and methods for each, which makes it difficult to compare the results. The second is that few of these studies consider whether India\textquotesingle{}s poor performance is due to the economy or to the data. In this paper, three actions are taken. It estimates the same model for India, Brazil, South Africa and Indonesia from 1991 through to 2024. It then carries out an India case study, dividing it into sub-periods and using an employment version based on RBI KLEMS data. Finally, it cross-checks the findings for Brazil by using Brazil\textquotesingle{}s own national statistics in order to see if the relationship appears when higher quality data are used. 
+
+
+What we are trying to do is not to show that one figure is correct; rather, we want to check whether the same simple rule applies in completely different labour markets. Section 2 looks at the relevant literature and states the hypotheses; Section 3 deals with the methodology, Section 4 describes the data, and Section 5 discusses the variables and the construction of the model. Section 6 gives the results, Section 7 examines their robustness, and Section 8 concludes by outlining the way forward.
+
+
+\hone{2}{Okun’s Law in theory and evidence}
+
+\htwo{2.1}{Okun’s Law and its two specifications}
+
+Okun (1962) put forward two forms of his rule. According to the gap version, the distance between the rate of unemployment and its natural level is determined by the output gap, that is, by how far actual output is from its potential. The version based on differences states that the change in unemployment is determined by the growth in real output. Unlike the gap version, the difference version does not require the use of potential output or the natural rate. In emerging economies both versions are difficult to apply since data are limited and labour markets are constantly changing. This is the reason why we have chosen the difference version as our main specification and the gap version is used as a check. 
+
+
+It is useful to have a clear understanding of what the law is since it is an empirical rule rather than a structural one. It shows the way in which labour demand, working hours, labour force participation and productivity all change together as a result of the business cycle. As these responses are determined by the way a labour market functions, the coefficient is not the same in all places; it varies from one country to another according to the labour market institutions of that country and it can also change over time in a given country. Therefore it would not be reasonable to expect a single figure from the United States to apply to all economies. This is precisely what we examine. It is important when we are interpreting our results. A small coefficient by itself does not imply that output and employment are unrelated; it might indicate that the adjustment takes place through channels which are not picked up by the unemployment rate. When we interpret the findings for each country we bear this point in mind. 
+
+
+\htwo{2.2}{Evidence from advanced and emerging economies}
+
+The evidence from the developed countries is clear. The study by Ball et al. (2017), which looked at 20 developed countries, shows that the law fits well. Although the coefficients differ greatly from one country to another, being small in Japan and large in Spain within most countries the relationship is strong and stable. 
+
+
+The situation in developing economies is different. According to Ball et al. (2019) the average coefficient is around -0.2, compared with -0.4 in developed economies, and the R² is about half that size. An et al. (2016) examined low- and lower-middle-income countries and found the average coefficient to be only about -0.14, which is only significant for half of the countries. An et al. (2021) discover that unemployment is more than twice as sensitive to demand in developed economies. In a study by the ILO, Lee et al. (2020) found the coefficients in developing and emerging countries to be low and frequently insignificant. Loungani et al. (2025) identify one explanation: a large part of the gap is due to the higher level of self-employment in emerging markets. 
+
+
+Taken together, the literature suggests two things for the countries we study. Output growth should still go with lower unemployment, but the link should be weaker than in advanced economies. We state these \textbf{as two hypotheses}.
+
+
+\textbf{\textit{H1.}} Higher real output growth is associated with a fall in the unemployment rate in each of the four emerging economies (β < 0).
+
+
+\textbf{\textit{H2.}} The size of the Okun coefficient in these economies is smaller than the advanced-economy benchmark of -0.4 (|β| < 0.4).
+
+
+\htwo{2.3}{Country evidence: India, Brazil, South Africa and Indonesia}
+
+India has received the greatest amount of study. Abubakar and Nurudeen (2019) obtain a negative although small coefficient and conclude that growth in India is \textquotesingle{}jobless\textquotesingle{}. Bhat (2019) finds that an increase of 1\% in GDP results in a reduction of unemployment by about 0.47, even though this is a long-run estimate. Teeli and Rao (2026) state that the law only applies when unemployment is above 5.1\% and per-capita growth is above 4.2\%. Kannan and Raveendran (2009) record a quarter century of jobless growth in India\textquotesingle{}s organised manufacturing. Taken as a whole, these studies explain why the question remains open.
+
+
+With regard to Brazil, Pizzo (2020) has looked at the studies on Latin America carried out for the ILO. Eight of these studies deal with Brazil from 1970 to 2015 and the average coefficient from their estimates is about -0.14 (-0.165 in the case of the difference version). For example, Tombolo and Hasegawa (2014) find -0.097 in the short run and -0.21 in the long run (as stated in Pizzo, 2020). Throughout the region, the coefficients are generally lower than those in the United States, and informality has a weakening effect on them.
+
+
+Structural unemployment in South Africa is well above 20\% throughout the period under review. Phiri (2014) re-analysed the relevant law between the years 2000 and 2013 by means of a nonlinear (asymmetric) cointegration method and discovered that, in the long run, it is unemployment that leads to growth rather than the reverse, which means that higher growth does not necessarily result in a reduction of unemployment. He associates this finding with South Africa\textquotesingle{}s jobless growth.\\
+Lee and Huruta (2019) apply a structural VAR to the period 1987–2017 and discover a negative relationship between growth and unemployment for Indonesia. Yet the 1997–98 crisis has a dominant influence on the data, which means it is not clear to what extent the finding reflects normal conditions.These studies differ in period, data and method, so no like-for-like comparison across the four countries exists. This paper tries to fill that gap.
+
+
+\hone{3}{Methodology}
+
+\htwo{3.1}{Difference version}
+
+The main model is the difference version in equation (1). Here u is the unemployment rate, g is real GDP growth and D2020 is a dummy for the pandemic year. The subscript i is the country and t is the year. The coefficient β is the Okun coefficient. It tells us how much unemployment changes, in percentage points, when growth is one percentage point higher. A negative β means that faster growth goes with falling unemployment. Equation (2) turns the model into the growth rate at which unemployment stays constant, g*. Growth above g* reduces unemployment, and growth below it pushes unemployment up.
+
+
+\begin{equation}
+\Delta u_{it} = \alpha_i + \beta_i\, g_{it} + \delta_i D_t^{2020} + \varepsilon_{it}
+\end{equation}
+
+\begin{equation}
+g_i^{*} = -\frac{\alpha_i}{\beta_i}
+\end{equation}
+
+\htwo{3.2}{Gap version}
+
+As a check we also use the gap version in equation (3). The gaps are the distance of unemployment and of log real GDP from their trends, marked with a star. The trends come from the Hodrick–Prescott filter (Hodrick and Prescott, 1997), which solves equation (4). The filter picks a smooth trend τ that stays close to the series x, and λ sets how smooth the trend is. We use λ = 100, the usual choice for annual data. The gap version does not replace the difference version. It only checks that our findings do not depend on one way of measuring the relationship.
+
+
+\begin{equation}
+\left(u_{it} - u_{it}^{*}\right) = \beta_i \left(y_{it} - y_{it}^{*}\right) + \varepsilon_{it}
+\end{equation}
+
+\begin{equation}
+\min_{\tau_t} \sum_{t=1}^{T} \left(x_t - \tau_t\right)^2 + \lambda \sum_{t=2}^{T-1} \left(\left(\tau_{t+1} - \tau_t\right) - \left(\tau_t - \tau_{t-1}\right)\right)^2
+\end{equation}
+
+\htwo{3.3}{Employment version for India}
+
+Because India’s unemployment series is mostly modelled (see Section 4.2), the India case study also asks how employment growth responds to real GVA growth, in equation (5). Here γ is the employment elasticity of output. A positive and significant γ would support the mechanism behind Okun’s Law, because growth would be creating jobs. A γ close to zero would signal jobless growth.
+
+
+\begin{equation}
+\Delta \ln E_t = c + \gamma\, \Delta \ln Y_t + \delta D_t^{2020} + v_t
+\end{equation}
+
+\htwo{3.4}{Estimation}
+
+All equations are estimated by OLS for each country separately. Standard errors are Newey–West (Newey and West, 1987), which allow for autocorrelation and heteroskedasticity, with 2 lags for annual data and 4 lags for quarterly data. Augmented Dickey–Fuller tests check that the variables in the regressions are stationary. For H2, we use a t-test of β = -0.4. The difference version is the main result, and the other versions are only used to check it. Since the sample is small, with 33 annual observations per country, we look at the size of coefficients as well as their significance.
+
+
+\hone{4}{Data description}
+
+\htwo{4.1}{Data sources and sample}
+
+The sample has four countries: India, Brazil, South Africa and Indonesia. All of them are on the MSCI and IMF lists of emerging markets, and together they cover Asia, Latin America and Africa. The period is 1991–2024 on an annual basis, so the change in unemployment runs from 1992 and gives 33 observations.
+
+
+Unemployment comes from the World Bank’s World Development Indicators (SL.UEM.TOTL.ZS). It is the ILO modelled estimate, as a percentage of the labour force aged 15 and above. Growth is real GDP growth from the same source (NY.GDP.MKTP.KD.ZG). Together they give one consistent definition across countries, which national series do not.
+
+
+For India we add the RBI India KLEMS database (July 2024 release). We use total-economy employment in persons and real GVA at 2011–12 prices, from 1991–92 to 2023–24.
+
+
+For Brazil we add IBGE data. These are the quarterly unemployment rate and number of employed persons (aged 14 and above) from PNAD Contínua, and year-on-year real GDP growth from the Quarterly National Accounts, covering 2012Q1 to 2024Q4.
+
+
+All series and links are listed under Data sources at the end.
+
+
+\htwo{4.2}{The problem with India’s labour data}
+
+\begin{enumerate}[label=\arabic*),leftmargin=0.5in,labelsep=0.1in]
+
+\item India had no annual labour force survey until the Periodic Labour Force Survey (PLFS) began in 2017–18. Before that, unemployment came from the NSS Employment–Unemployment rounds, held roughly every five years (1993–94, 1999–2000, 2004–05, 2009–10 and 2011–12), and from Labour Bureau surveys in the 2010s.
+
+\item The ILO fills the missing years with a model. As a result, the WDI series for India barely moves. It stays between 7.5\% and 7.7\% from 1991 to 2018 (Figure 1). With almost no variation in the change in unemployment, any Okun coefficient will be close to zero, whatever the true relationship is.
+
+\item The ILO level also does not match the official PLFS rate, because of differences in definition and modelling. PLFS usual-status unemployment was about 6\% in 2017–18 and 3.2\% in 2023–24.
+
+\item The KLEMS employment series has the same problem. It is built from the survey rounds and joined by interpolation, which shows up as straight segments and kinks in Figure 3. After 2017–18 it switches to PLFS, which creates a jump.
+
+\item So India’s results must be read as a joint test of Okun’s Law and of data quality. This is why Brazil, whose quarterly national data come from a survey every quarter, is used as a check.
+
+\end{enumerate}
+
+\FIG{figures/image1.png}{5.8333in}
+
+\CAP{Figure 1. India: real GDP growth and the unemployment rate, 1991–2024 (generated using R)}
+
+\NOTE{\textbf{Source(s):} Author’s elaboration using World Bank, World Development Indicators (SL.UEM.TOTL.ZS; NY.GDP.MKTP.KD.ZG)}
+
+\hone{5}{Variable selection and model construction}
+
+\htwo{5.1}{Variable description}
+
+The dependent variable is Δu, the change in the unemployment rate, in percentage points. The main explanatory variable is g, real GDP growth in per cent. We control for the pandemic with D2020, which equals 1 in 2020 and 0 in other years. In the gap version, the variables are the unemployment gap and the output gap, both measured as deviations from their HP trends. In the India employment version, they are the log change in employment and the log change in real GVA. For Brazil’s quarterly data, we use the four-quarter change in unemployment and year-on-year GDP growth. The COVID dummy there covers 2020Q2 to 2021Q2.
+
+
+\htwo{5.2}{Model construction}
+
+We estimate three models. Model 1 (equation 6) is the main test of H1 and H2. Model 2 (equation 7) checks that the result does not depend on using growth rates. Model 3 (equation 8) looks directly at whether output growth creates jobs in India.
+
+
+\begin{equation}
+\text{Model 1: }\Delta u_t = \alpha + \beta\, g_t + \delta D_t^{2020} + \varepsilon_t
+\end{equation}
+
+\begin{equation}
+\text{Model 2: }\tilde{u}_t = \beta\, \tilde{y}_t + \varepsilon_t
+\end{equation}
+
+\begin{equation}
+\text{Model 3: }e_t = c + \gamma\, y_t + \delta D_t^{2020} + v_t
+\end{equation}
+
+Here ũ and ỹ are deviations from HP trends, and e and y are log changes in employment and real GVA.
+
+
+\hone{6}{Results and discussion}
+
+\htwo{6.1}{Descriptive statistics}
+
+Table 1 and Figure 2 summarise the data. India grew fastest, with mean growth of 6.09\%, yet its unemployment changed the least (the standard deviation of Δu is 0.49 percentage points). South Africa’s unemployment is very high, at a mean of 25.0\%, and rising. Brazil has the most cyclical labour market, with a standard deviation of Δu of 1.24 and the strongest negative correlation between Δu and growth (-0.63). Indonesia’s growth is dominated by the 1998 crisis, when output fell by 13.1\%.
+
+
+Table 2 reports the unit root tests. Unemployment levels are non-stationary, but Δu and g are stationary (Indonesia’s Δu only at the 10\% level). So equation (1) is valid when estimated in growth rates. Overall, the descriptive statistics already hint at the main result. Brazil has the most variation in the change in unemployment, and it is also the country where growth and unemployment move together most clearly.
+
+
+\TCAP{Table 1. Descriptive statistics, 1991–2024}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllll}
+
+\toprule
+
+Variable & India & Brazil & South Africa & Indonesia \\
+
+\midrule
+
+Unemployment rate, mean (\%) & 7.27 & 9.34 & 25.03 & 5.01 \\
+
+Unemployment rate, std. dev. & 0.96 & 2.12 & 3.44 & 1.54 \\
+
+Unemployment rate, min & 4.17 & 6.03 & 22.26 & 2.62 \\
+
+Unemployment rate, max & 7.86 & 13.70 & 34.01 & 8.06 \\
+
+Real GDP growth, mean (\%) & 6.09 & 2.40 & 2.05 & 4.65 \\
+
+Real GDP growth, std. dev. & 2.83 & 2.66 & 2.40 & 3.64 \\
+
+Real GDP growth, min & -5.78 & -3.55 & -6.17 & -13.13 \\
+
+Real GDP growth, max & 9.69 & 7.53 & 5.60 & 8.22 \\
+
+Δu, std. dev. (p.p.) & 0.49 & 1.24 & 0.98 & 0.58 \\
+
+Correlation (Δu, g) & -0.52 & -0.63 & -0.07 & -0.26 \\
+
+Observations & 34 & 34 & 34 & 34 \\
+
+\bottomrule
+\end{tabular*}\endgroup
+
+\NOTE{\textbf{Source(s):} Author’s estimates using World Bank, World Development Indicators}
+
+\TCAP{Table 2. Augmented Dickey–Fuller unit root tests (t-statistics)}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllll}
+
+\toprule
+
+Variable & India & Brazil & South Africa & Indonesia \\
+
+\midrule
+
+Unemployment rate (u) & 1.04 & -2.51 & 0.43 & -1.45 \\
+
+Change in unemployment (Δu) & -3.77*** & -3.31** & -3.65** & -2.82* \\
+
+Real GDP growth (g) & -4.45*** & -3.28** & -3.64** & -3.84*** \\
+
+\bottomrule
+\end{tabular*}\endgroup
+
+\NOTE{\textbf{Note:} Test with constant and one lag. Approximate critical values for about 33 observations: -3.65 (1\%), -2.95 (5\%), -2.61 (10\%). ***, ** and * indicate rejection of a unit root at 1\%, 5\% and 10\%, respectively}
+
+\NOTE{\textbf{Source(s):} Author’s estimates}
+
+\FIG{figures/image2.png}{5.8333in}
+
+\CAP{Figure 2. Change in unemployment and real GDP growth, 1992–2024 (generated using R)}
+
+\NOTE{\textbf{Note:} Each point is one year; the line is the OLS fit. Axis scales differ across panels}
+
+\NOTE{\textbf{Sources:} Author’s elaboration using World Bank, World Development Indicators}
+
+\htwo{6.2}{Okun’s Law in the four economies}
+
+Table 3 gives the main results. For H1, β is negative in all four countries, but it is significant only in Brazil (-0.285***). The coefficients for India (-0.048), South Africa (-0.009) and Indonesia (-0.034) are small and not significant. So H1 is clearly supported only for Brazil.
+
+
+For H2, we test whether β equals -0.4. The test is rejected at the 1\% level for India, South Africa and Indonesia. For Brazil it is not rejected at 5\% (p = 0.058). The three weaker cases therefore sit well below the advanced-economy benchmark, while Brazil behaves almost like an advanced economy. For Brazil, g* is 2.41\%. This means Brazil needs growth of roughly 2.4\% just to stop unemployment from rising, which is close to its average growth of 2.4\%. That helps explain why unemployment drifted up over the period.
+
+
+The gap version in Table 4 tells the same story. Brazil is at -0.412***, South Africa at -0.129** (significant here), and India and Indonesia are close to zero. The simple average of the four coefficients in Table 3 is about -0.09. This is even smaller than the averages of about -0.2 for developing economies and about -0.14 for low and lower-middle income countries (An et al., 2016). The sample is small, so a coefficient can be statistically insignificant even when it is not exactly zero. The very low R² for South Africa (0.008) and Indonesia (0.081) shows how little of the movement in unemployment growth explains in these two countries. India and Brazil have higher R² values (0.305 and 0.394), but only Brazil’s growth coefficient is significant.
+
+
+\TCAP{Table 3. Difference version of Okun’s Law (Model 1), 1992–2024}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllll}
+
+\toprule
+
+ & India & Brazil & South Africa & Indonesia \\
+
+\midrule
+
+Constant (α) & 0.165 & 0.688*** & 0.283 & 0.165 \\
+
+ & (0.324) & (0.246) & (0.249) & (0.114) \\
+
+Real GDP growth (β) & -0.048 & -0.285*** & -0.009 & -0.034 \\
+
+ & (0.057) & (0.058) & (0.119) & (0.022) \\
+
+D2020 & Yes & Yes & Yes & Yes \\
+
+p-value, H0: β = -0.4 & <0.001 & 0.058 & 0.003 & <0.001 \\
+
+Growth that keeps u constant, g* (\%) & – & 2.41 & – & – \\
+
+R² & 0.305 & 0.394 & 0.008 & 0.081 \\
+
+Durbin–Watson & 1.06 & 1.36 & 2.07 & 1.69 \\
+
+Observations & 33 & 33 & 33 & 33 \\
+
+\bottomrule
+\end{tabular*}\endgroup
+
+\NOTE{\textbf{Note:} Newey–West standard errors in parentheses. ***, ** and * indicate 1\%, 5\% and 10\% significance levels, respectively. g* is reported only where β is significant}
+
+\NOTE{\textbf{Sources:} Author’s estimates using World Bank, World Development Indicators}
+
+\TCAP{Table 4. Gap version of Okun’s Law (Model 2), 1991–2024}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllll}
+
+\toprule
+
+ & India & Brazil & South Africa & Indonesia \\
+
+\midrule
+
+Output gap (β) & -0.050 & -0.412*** & -0.129** & -0.014 \\
+
+ & (0.052) & (0.053) & (0.051) & (0.014) \\
+
+R² & 0.102 & 0.680 & 0.093 & 0.013 \\
+
+Observations & 34 & 34 & 34 & 34 \\
+
+\bottomrule
+\end{tabular*}\endgroup
+
+\NOTE{\textbf{Note(s):} Gaps are deviations from Hodrick–Prescott trends (λ = 100). Newey–West standard errors in parentheses. ***, ** and * indicate 1\%, 5\% and 10\% significance levels, respectively}
+
+\NOTE{\textbf{Source(s):} Author’s estimates using World Bank, World Development Indicators}
+
+\htwo{6.3}{India: case study}
+
+Table 5 and Figure 3 give the India case study. Panel A splits the unemployment model by period. For 1992–2003, β is -0.016, which is significant but tiny. For 2004–2019, β is 0.073, which has the wrong sign and is not significant. For 2004–2024 with the 2020 dummy, β is -0.038 and not significant. The only clear movement in India’s unemployment is the COVID spike and the fall after 2021, which is too short a period to estimate on.
+
+
+Panel B uses the KLEMS employment data. Over 1991–92 to 2023–24, γ is -0.299 and not significant. Between 2004–05 and 2017–18, real GVA grew 6.6\% a year on average while employment grew only 0.5\%, and γ is -0.031 (not significant). This is jobless growth in its clearest form. After 2018–19, employment grows faster than output and γ turns negative (-0.946). Employment even rose during the 2020–21 contraction. We should not read too much into this, because it covers only 6 years and the jump coincides with the switch to PLFS data.
+
+
+Overall, neither unemployment nor employment in India moves with the output cycle. Part of this is real: jobless growth, and labour being absorbed into low-productivity work during downturns. Part of it is the data problem from Section 4.2. Either way, Okun’s Law in its standard form does not describe India. This is also why the Brazil check in the next subsection matters. It tells us whether a better data source can find a link where one exists.
+
+
+\TCAP{Table 5. India: Okun’s Law by sub-period and employment elasticity}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llll}
+
+\toprule
+
+Panel A: Model 1 (unemployment) & 1992–2003 & 2004–2019 & 2004–2024 \\
+
+\midrule
+
+Real GDP growth (β) & -0.016** & 0.073 & -0.038 \\
+
+ & (0.005) & (0.075) & (0.086) \\
+
+D2020 & No & No & Yes \\
+
+R² & 0.535 & 0.172 & 0.325 \\
+
+Observations & 12 & 16 & 21 \\
+
+\bottomrule
+\end{tabular*}\endgroup
+
+\par\bigskip
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+
+\toprule
+
+Panel B: Model 3 (employment, KLEMS) & 1991–92 to 2023–24 & 1991–92 to 2003–04 & 2004–05 to 2017–18 & 2018–19 to 2023–24 \\
+
+\midrule
+
+Real GVA growth (γ) & -0.299 & -0.138* & -0.031 & -0.946** \\
+
+ & (0.194) & (0.074) & (0.060) & (0.191) \\
+
+Mean GVA growth (\%) & 5.68 & 5.15 & 6.62 & 4.62 \\
+
+Mean employment growth (\%) & 1.88 & 1.88 & 0.51 & 5.06 \\
+
+D2020 & Yes & No & No & Yes \\
+
+R² & 0.172 & 0.127 & 0.002 & 0.427 \\
+
+Observations & 33 & 13 & 14 & 6 \\
+
+\bottomrule
+\end{tabularx}\endgroup
+
+\NOTE{\textbf{Note(s):} Newey–West standard errors in parentheses. ***, ** and * indicate 1\%, 5\% and 10\% significance levels, respectively. Panel B uses fiscal years; growth rates are log changes ×100}
+
+\NOTE{\textbf{Source(s):} Author’s estimates using World Bank, World Development Indicators (Panel A) and Reserve Bank of India, India KLEMS Database, July 2024 (Panel B)}
+
+\FIG{figures/image3.png}{5.8333in}
+
+\CAP{Figure 3. India: growth of real GVA and employment, 1991–92 to 2023–24 (generated using R)}
+
+\NOTE{\textbf{Source(s):} Author’s elaboration using Reserve Bank of India, India KLEMS Database (July 2024)}
+
+\htwo{6.4}{Brazil: verification with national data}
+
+To check that Brazil’s WDI result is not a product of ILO modelling, we re-estimate the model with IBGE’s own quarterly survey (PNAD Contínua) and national accounts for 2013Q1 to 2024Q4, which gives 48 quarters. Table 6 and Figure 4 show the results.
+
+
+With the COVID dummy, β is -0.313**. When we drop the pandemic quarters it is -0.556***. The annual WDI estimate was -0.285. The employment elasticity is 0.754*** and 0.671*** in the same two cases, so employment clearly rises with output. The 2015–16 recession shows this well. GDP fell by 3.5\% and 3.3\%, and unemployment rose from about 7\% to over 13\%, a textbook Okun episode.
+
+
+So Okun’s Law holds in Brazil on both international and national data, with a coefficient between -0.3 and -0.55. This contrasts with India, where neither data source shows a link. It also shows that the method can detect the relationship where it exists.
+
+
+\TCAP{Table 6. Brazil: Okun’s Law with IBGE quarterly data, 2013Q1–2024Q4}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+
+\toprule
+
+ & (1) Δ₄u & (2) Δ₄u & (3) Employment growth & (4) Employment growth \\
+
+\midrule
+
+Real GDP growth, y-o-y & -0.313** & -0.556*** & 0.754*** & 0.671*** \\
+
+ & (0.121) & (0.089) & (0.154) & (0.177) \\
+
+COVID dummy (2020Q2–2021Q2) & Yes & Excluded & Yes & Excluded \\
+
+R² & 0.438 & 0.572 & 0.680 & 0.326 \\
+
+Observations & 48 & 43 & 48 & 43 \\
+
+\bottomrule
+\end{tabularx}\endgroup
+
+\NOTE{\textbf{Note(s):} Δ₄u is the change in the unemployment rate over four quarters; employment growth is the four-quarter log change in employed persons ×100. Newey–West standard errors (lag 4) in parentheses. ***, ** and * indicate 1\%, 5\% and 10\% significance levels, respectively}
+
+\NOTE{\textbf{Source(s):} Author’s estimates using IBGE, PNAD Contínua (Table 4093) and Contas Nacionais Trimestrais (Table 5932)}
+
+\FIG{figures/image4.png}{5.5in}
+
+\CAP{Figure 4. Brazil: GDP growth and change in unemployment, quarterly, 2013–2024}
+
+\NOTE{\textbf{Note(s):} Line fitted excluding the pandemic quarters}
+
+\NOTE{\textbf{Source(s):} Author’s elaboration using IBGE data}
+
+\hone{7}{Robustness analysis}
+
+We run three robustness checks, using Table 7 and Figure 5. First, we drop 2020 and 2021 instead of using a dummy. Brazil is unchanged (-0.287***). South Africa now becomes significant (-0.121***). This happens because in 2021 its unemployment kept rising while GDP rebounded, which hides the relationship in the full sample. Indonesia becomes weakly significant (-0.036*), and India stays at zero (-0.001).
+
+
+Second, we estimate rolling 15-year windows (Figure 5). Brazil stays between about -0.2 and -0.4 throughout. India stays close to zero in every window. South Africa and Indonesia are unstable, and their coefficients even turn positive in some windows.
+
+
+Third, the gap version in Table 4 already gave the same ranking. So the main conclusions do not depend on how the pandemic is treated or on the period chosen. Together with the results above, this makes us more confident that India’s weak coefficients are not caused by one choice of sample or model, although the data limits from Section 4.2 still apply.
+
+
+\TCAP{Table 7. Difference version excluding 2020 and 2021, 1992–2024}
+
+\par\nopagebreak\vspace{0pt}
+
+\begingroup\renewcommand{\arraystretch}{1.5}\setlength{\tabcolsep}{5.4pt}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllll}
+
+\toprule
+
+ & India & Brazil & South Africa & Indonesia \\
+
+\midrule
+
+Constant (α) & -0.101 & 0.688** & 0.397** & 0.187* \\
+
+ & (0.228) & (0.260) & (0.177) & (0.106) \\
+
+Real GDP growth (β) & -0.001 & -0.287*** & -0.121*** & -0.036* \\
+
+ & (0.029) & (0.059) & (0.041) & (0.020) \\
+
+p-value, H0: β = -0.4 & <0.001 & 0.067 & <0.001 & <0.001 \\
+
+g* (\%) & – & 2.40 & 3.29 & 5.23 \\
+
+R² & 0.000 & 0.349 & 0.158 & 0.048 \\
+
+Observations & 31 & 31 & 31 & 31 \\
+
+\bottomrule
+\end{tabular*}\endgroup
+
+\NOTE{\textbf{Note(s):} Newey–West standard errors in parentheses. ***, ** and * indicate 1\%, 5\% and 10\% significance levels, respectively}
+
+\NOTE{\textbf{Source(s):} Author’s estimates using World Bank, World Development Indicators}
+
+\FIG{figures/image5.png}{5.8333in}
+
+\CAP{Figure 5. Rolling 15-year estimates of the Okun coefficient (generated using R)}
+
+\NOTE{\textbf{Note(s):} Shaded area is the 95\% confidence band. Dashed line marks the advanced-economy benchmark of -0.4}
+
+\NOTE{\textbf{Source(s):} Author’s estimates using World Bank, World Development Indicators}
+
+\hone{8}{Conclusion and way forward}
+
+Okun’s Law holds in Brazil but is weak or absent in India, South Africa and Indonesia. Brazil’s coefficient is about -0.3, close to the -0.4 benchmark, and IBGE data confirm it. H1 is supported for Brazil, and also for South Africa once the pandemic years are dropped. H2 holds for all four countries, in the sense that the coefficient is smaller in size than -0.4, although for Brazil the difference is not statistically significant. The main lesson is that growth alone cannot be relied on to bring down measured unemployment in most emerging economies. South Africa deserves a note. It looks weak in the full sample, but it becomes clearer once the pandemic years are dropped, which shows how sensitive a small sample is to a few unusual years.
+
+
+India shows this most clearly. Neither unemployment nor employment follows output. Between 2004 and 2018, employment grew about 0.5\% a year while output grew by over 6\%. The policy point is that growth targets should be paired with direct attention to employment intensity. India also needs long, consistent and frequent labour statistics. The quarterly and monthly PLFS releases are a step in that direction, and they will make it easier to tell a weak relationship from a data problem.
+
+
+This study shows that the law is weak in most of these economies. The next stage will examine why. It will test whether the size of the Okun coefficient is linked to the share of informal employment, the share of agriculture in employment and the share of self-employment, using ILO and World Bank data. It will also widen the analysis to a larger panel of emerging economies and ask whether the relationship is asymmetric across booms and recessions.
+
+
+\hone{}{References}
+
+Abubakar, J. and Nurudeen, I. (2019), “Economic growth in India, is it a jobless growth? An empirical examination using Okun’s law”, \textit{The Indian Journal of Labour Economics}, Vol. 62 No.~2, pp.~307-317.
+
+
+An, Z., Bluedorn, J. and Ciminelli, G. (2021), “Okun’s law, development, and demographics: differences in the cyclical sensitivities of unemployment across economy and worker groups”, IMF Working Paper No.~WP/21/270, International Monetary Fund, Washington, DC.
+
+
+An, Z., Ghazi, T. and Gonzalez Prieto, N. (2016), “Okun’s law: unfit for low and lower middle income countries?”, paper presented at the IMF/World Bank/ILO conference on Global Labor Markets, Washington, DC.
+
+
+Ball, L., Furceri, D., Leigh, D. and Loungani, P. (2019), “Does one law fit all? Cross-country evidence on Okun’s law”, \textit{Open Economies Review}, Vol. 30 No.~5, pp.~841-874.
+
+
+Ball, L., Leigh, D. and Loungani, P. (2017), “Okun’s law: fit at 50?”, *Journal of Money, Credit and Banking*, Vol. 49 No.~7, pp.~1413-1441.
+
+
+Bhat, T.A. (2019), “The validity of Okun’s law: evidences from Indian economy”, \textit{Theoretical and Applied Economics}, Vol. XXVI No.~4(621), pp.~273-278.
+
+
+Cazes, S., Verick, S. and Al Hussami, F. (2013), “Why did unemployment respond so differently to the global financial crisis across countries? Insights from Okun’s law”, \textit{IZA Journal of Labor Policy}, Vol. 2, Article 10.
+
+
+Hodrick, R.J. and Prescott, E.C. (1997), “Postwar U.S. business cycles: an empirical investigation”, *Journal of Money, Credit and Banking*, Vol. 29 No.~1, pp.~1-16.
+
+
+Kannan, K.P. and Raveendran, G. (2009), “Growth sans employment: a quarter century of jobless growth in India’s organised manufacturing”, \textit{Economic and Political Weekly}, Vol. 44 No.~10, pp.~80-91.
+
+
+Kapsos, S. (2005), “The employment intensity of growth: trends and macroeconomic determinants”, Employment Strategy Paper No.~2005/12, International Labour Office, Geneva.
+
+
+Knotek, E.S. (2007), “How useful is Okun’s law?”, \textit{Federal Reserve Bank of Kansas City Economic Review}, Vol. 92 No.~4, pp.~73-103.
+
+
+Lee, C.-W. and Huruta, A.D. (2019), “Okun’s law in an emerging country: an empirical analysis in Indonesia”, \textit{International Entrepreneurship Review}, Vol. 5 No.~4, pp.~141-160.
+
+
+Lee, J. (2000), “The robustness of Okun’s law: evidence from OECD countries”, \textit{Journal of Macroeconomics}, Vol. 22 No.~2, pp.~331-356.
+
+
+Lee, S., Schmidt-Klau, D., Weiss, J. and Chacaltana, J. (2020), “Does economic growth deliver jobs? Revisiting Okun’s law”, ILO Working Paper No.~17, International Labour Office, Geneva.
+
+
+Loungani, P., Luttini, E. and Pallan, H. (2025), “Sources of differences in Okun’s law between advanced economies and emerging markets”, VoxEU column, Centre for Economic Policy Research, 1 April.
+
+
+Moosa, I.A. (1997), “A cross-country comparison of Okun’s coefficient”, \textit{Journal of Comparative Economics}, Vol. 24 No.~3, pp.~335-356.
+
+
+Newey, W.K. and West, K.D. (1987), “A simple, positive semi-definite, heteroskedasticity and autocorrelation consistent covariance matrix”, \textit{Econometrica}, Vol. 55 No.~3, pp.~703-708.
+
+
+Okun, A.M. (1962), “Potential GNP: its measurement and significance”, \textit{Proceedings of the Business and Economic Statistics Section}, American Statistical Association, Washington, DC, pp.~98-104.
+
+
+Phiri, A. (2014), “Re-evaluating Okun’s law in South Africa: a nonlinear co-integration approach”, MPRA Paper No.~57398, University Library of Munich.
+
+
+Pizzo, A. (2020), “Literature review of empirical studies on Okun’s law in Latin America and the Caribbean”, Employment Working Paper No.~252, International Labour Office, Geneva.
+
+
+Teeli, A.A. and Rao, C.S. (2026), “When does growth reduce unemployment in India? Threshold effects in the growth–unemployment nexus”, \textit{SN Business \& Economics}, Vol. 6 No.~1, Article 26.
+
+
+\hone{}{Data sources}
+
+World Bank (2026), \textit{World Development Indicators}, indicator SL.UEM.TOTL.ZS, “Unemployment, total (\% of total labor force) (modeled ILO estimate)”, last updated 13 July 2026, available at: https://data.worldbank.org/indicator/SL.UEM.TOTL.ZS (accessed 2 October 2026). Original source: International Labour Organization, ILOSTAT, ILO Modelled Estimates.
+
+
+World Bank (2026), \textit{World Development Indicators}, indicator NY.GDP.MKTP.KD.ZG, “GDP growth (annual \%)”, last updated 13 July 2026, available at: https://data.worldbank.org/indicator/NY.GDP.MKTP.KD.ZG (accessed 2 October 2026).
+
+
+Reserve Bank of India (2024), \textit{India KLEMS Database}, release of 8 July 2024 (sheet “Economy”: employment in persons and gross value added at 2011-12 prices, 1980-81 to 2023-24), available at: https://www.rbi.org.in/Scripts/KLEMS.aspx (accessed 2 October 2026).
+
+
+Instituto Brasileiro de Geografia e Estatística (IBGE) (2026), \textit{Pesquisa Nacional por Amostra de Domicílios Contínua Trimestral}, SIDRA Table 4093 (unemployment rate and employed persons aged 14 and over), available at: https://sidra.ibge.gov.br/tabela/4093 (accessed 2 October 2026).
+
+
+Instituto Brasileiro de Geografia e Estatística (IBGE) (2026), \textit{Sistema de Contas Nacionais Trimestrais}, SIDRA Table 5932 (GDP at market prices, volume change on the same quarter of the previous year), available at: https://sidra.ibge.gov.br/tabela/5932 (accessed 2 October 2026).
+
+
+Ministry of Statistics and Programme Implementation (MoSPI), Government of India, \textit{Periodic Labour Force Survey (PLFS) Annual Reports}, 2017-18 to 2023-24, available at: https://mospi.gov.in (used for comparison with the ILO series in Section 4.2).
+
+
+\end{document}
